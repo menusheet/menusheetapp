@@ -105,20 +105,154 @@ function Logo({ url, size }: { url?: string | null; size: number }) {
   return <SampleLogo size={size} />;
 }
 
-function HeroImg({ src, alt }: { src: string; alt: string }) {
+type Poster = { image?: string; title?: string; subtitle?: string; bg?: string; light?: boolean };
+
+const SAMPLE_POSTERS: Poster[] = [
+  { image: SAMPLE_HERO, title: 'Made to order', subtitle: 'Fresh burgers, hot off the grill.', bg: 'linear-gradient(135deg,#E31E24,#6B0B0F)' },
+  { title: 'Double the flavour', subtitle: 'Try our signature stacks.', bg: 'linear-gradient(135deg,#292116 0%,#E31E24 100%)' },
+  { title: 'Order in seconds', subtitle: 'Add to cart and send it on WhatsApp.', bg: 'linear-gradient(135deg,#F4DD00,#FFB800)', light: true },
+];
+
+function PosterSlide({ p }: { p: Poster }) {
   const [bad, setBad] = useState(false);
-  const [ready, setReady] = useState(() => loadedImages.has(src));
-  if (bad) return null;
+  const [ready, setReady] = useState(() => (p.image ? loadedImages.has(p.image) : true));
+  const hasImg = !!p.image && !bad;
+  const dark = !p.light || hasImg;
   return (
-    <img
-      src={src}
-      alt={alt}
-      decoding="async"
-      onError={() => setBad(true)}
-      onLoad={() => { loadedImages.add(src); setReady(true); }}
-      className="h-full w-full object-cover"
-      style={{ opacity: ready ? 1 : 0, transition: 'opacity .3s ease' }}
-    />
+    <div className="relative h-full w-full shrink-0 snap-center overflow-hidden" style={{ background: p.bg || 'linear-gradient(135deg,#E31E24,#6B0B0F)' }}>
+      {!hasImg ? (
+        <>
+          <span aria-hidden="true" className="absolute -right-10 -top-12 h-52 w-52 rounded-full" style={{ background: 'rgba(255,255,255,.14)' }} />
+          <span aria-hidden="true" className="absolute -bottom-16 right-16 h-40 w-40 rounded-full" style={{ background: 'rgba(255,255,255,.10)' }} />
+        </>
+      ) : (
+        <>
+          <img
+            src={p.image}
+            alt={p.title || 'Poster'}
+            decoding="async"
+            onError={() => setBad(true)}
+            onLoad={() => { loadedImages.add(p.image!); setReady(true); }}
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ opacity: ready ? 1 : 0, transition: 'opacity .3s ease' }}
+          />
+          <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(0,0,0,.65) 100%)' }} />
+        </>
+      )}
+      {p.title || p.subtitle ? (
+        <div className="absolute inset-x-0 bottom-0 p-5 pr-20" style={{ color: dark ? '#fff' : 'var(--ms-text)' }}>
+          {p.title ? <p dir="auto" className="text-[26px] leading-[1.05] tracking-tight sm:text-[34px]" style={heading}>{p.title}</p> : null}
+          {p.subtitle ? <p dir="auto" className="mt-1.5 text-[14px] leading-snug" style={{ opacity: 0.85 }}>{p.subtitle}</p> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Carousel({ posters }: { posters: Poster[] }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const holdUntil = useRef(0);
+  const [i, setI] = useState(0);
+
+  useEffect(() => {
+    if (posters.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t = setInterval(() => {
+      const el = ref.current;
+      if (!el || Date.now() < holdUntil.current) return;
+      const next = (Math.round(el.scrollLeft / el.clientWidth) + 1) % posters.length;
+      el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' });
+    }, 4500);
+    return () => clearInterval(t);
+  }, [posters.length]);
+
+  const hold = () => { holdUntil.current = Date.now() + 8000; };
+  return (
+    <div className="relative overflow-hidden rounded-[28px]" style={{ aspectRatio: '16 / 10', boxShadow: '0 12px 32px -12px rgba(0,0,0,.35)' }} role="region" aria-roledescription="carousel" aria-label="Offers">
+      <div
+        ref={ref}
+        onScroll={(e) => setI(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+        onPointerDown={hold}
+        onTouchStart={hold}
+        className="flex h-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {posters.map((p, n) => <PosterSlide key={n} p={p} />)}
+      </div>
+      {posters.length > 1 ? (
+        <div className="pointer-events-none absolute bottom-4 right-5 flex items-center gap-1.5">
+          {posters.map((_, n) => (
+            <span key={n} className="h-1.5 rounded-full transition-all duration-300" style={{ width: n === i ? 18 : 6, background: n === i ? '#fff' : 'rgba(255,255,255,.5)' }} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Icon({ name, size = 22 }: { name: string; size?: number }) {
+  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+  switch (name) {
+    case 'phone': return <svg {...common}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" /></svg>;
+    case 'chat': return <svg {...common}><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5A8.5 8.5 0 1 1 21 11.5Z" /></svg>;
+    case 'pin': return <svg {...common}><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z" /><circle cx="12" cy="10" r="2.5" /></svg>;
+    case 'insta': return <svg {...common}><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r=".6" /></svg>;
+    case 'globe': return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>;
+    case 'clock': return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
+    default: return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>;
+  }
+}
+
+function Details({ r }: { r: any }) {
+  const phone = String(r.phone || r.contactNumber || '').trim();
+  const wa = String(r.whatsapp || r.whatsappNumber || phone).replace(/\D/g, '');
+  const ig = String(r.instagram || '').trim();
+  const address = String(r.address || '').trim();
+  const hours = typeof (r.hours || r.openingHours) === 'string' ? String(r.hours || r.openingHours) : '';
+  const map = r.mapUrl || r.googleMapsUrl || r.locationUrl || (address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '');
+  const all = [
+    { key: 'call', label: 'Call', icon: 'phone', bg: '#34C759', href: phone ? `tel:${phone.replace(/\s/g, '')}` : '' },
+    { key: 'wa', label: 'WhatsApp', icon: 'chat', bg: '#25D366', href: wa ? `https://wa.me/${wa}` : '' },
+    { key: 'map', label: 'Directions', icon: 'pin', bg: '#0A84FF', href: map },
+    { key: 'ig', label: 'Instagram', icon: 'insta', bg: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF)', href: ig ? (/^https?:/.test(ig) ? ig : `https://instagram.com/${ig.replace(/^@/, '')}`) : '' },
+    { key: 'web', label: 'Website', icon: 'globe', bg: '#1D1D1F', href: r.website || '' },
+  ].filter((a) => ['call', 'wa', 'map', 'ig'].includes(a.key) || a.href);
+  return (
+    <div className="pb-2">
+      <div className="mb-4 flex items-center gap-3 rounded-[22px] p-4" style={{ background: '#fff' }}>
+        <Logo url={r.logoUrl} size={60} />
+        <div className="min-w-0">
+          <p dir="auto" className="truncate text-[18px] font-bold tracking-tight">{r.name}</p>
+          <p dir="auto" className="text-[13px] leading-snug" style={{ color: 'var(--ms-muted)' }}>{r.tagline || 'Fresh, hot and made to order.'}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        {all.map((a) => {
+          const on = !!a.href;
+          const inner = (
+            <>
+              <span className="flex h-11 w-11 items-center justify-center rounded-full text-white" style={{ background: a.bg }}><Icon name={a.icon} /></span>
+              <span className="mt-2.5 text-[15px] font-semibold">{a.label}</span>
+              <span className="text-[12px]" style={{ color: 'var(--ms-muted)' }}>{on ? 'Tap to open' : 'Not added yet'}</span>
+            </>
+          );
+          const cls = 'flex flex-col items-start rounded-[22px] p-4 text-left transition active:scale-[.97]';
+          return on ? (
+            <a key={a.key} href={a.href} target={a.href.startsWith('tel:') ? undefined : '_blank'} rel="noopener noreferrer" className={cls} style={{ background: '#fff' }}>{inner}</a>
+          ) : (
+            <div key={a.key} aria-disabled="true" className={cls} style={{ background: '#fff', opacity: 0.45 }}>{inner}</div>
+          );
+        })}
+      </div>
+      {address || hours ? (
+        <div className="mt-3 divide-y rounded-[22px] bg-white" style={{ ['--tw-divide-opacity' as string]: 1 }}>
+          {address ? (
+            <div className="flex gap-3 p-4"><span style={{ color: 'var(--ms-muted)' }}><Icon name="pin" size={20} /></span><p dir="auto" className="text-[14px] leading-snug">{address}</p></div>
+          ) : null}
+          {hours ? (
+            <div className="flex gap-3 p-4"><span style={{ color: 'var(--ms-muted)' }}><Icon name="clock" size={20} /></span><p dir="auto" className="text-[14px] leading-snug">{hours}</p></div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -128,7 +262,13 @@ function Thumb({ url, alt, size }: { url?: string | null; alt: string; size: num
       className="shrink-0 overflow-hidden"
       style={{ width: size, height: size, borderRadius: size * 0.22, background: '#EDEDF0' }}
     >
-      {url ? <CachedImg src={url} alt={alt} className="h-full w-full object-cover" /> : null}
+      {url ? (
+        <CachedImg src={url} alt={alt} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center" style={{ opacity: 0.35, filter: 'grayscale(1)' }}>
+          <SampleLogo size={Math.round(size * 0.42)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -243,48 +383,46 @@ function ItemRow({ item, qty, onAdd, onRemove }: { item: MenuItem; qty: number; 
   const unavailable = !item.isAvailable;
   const hasVariants = getVariants(item).length > 0;
   return (
-    <li className={`flex gap-4 rounded-[22px] p-3 ${unavailable ? 'opacity-50' : ''}`} style={{ background: 'var(--ms-surface)' }}>
-      <div className="relative">
-        <Thumb url={item.imageUrl} alt={item.name} size={96} />
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-start gap-2">
-          <h3 dir="auto" className="min-w-0 flex-1 text-[16px] font-semibold leading-snug tracking-tight">
-            {item.name}
-          </h3>
-          <span className="mt-1"><VegMark isVeg={item.isVeg} /></span>
-        </div>
-        {item.description ? (
-          <p dir="auto" className="mt-0.5 line-clamp-2 text-[13px] leading-snug" style={{ color: 'var(--ms-muted)' }}>
-            {item.description}
-          </p>
-        ) : null}
-        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
-          <div className="min-w-0">
-            {unavailable ? (
-              <span className="text-[13px] font-medium" style={{ color: 'var(--ms-muted)' }}>Sold out</span>
+    <li
+      className={`flex gap-3.5 rounded-[24px] p-3 ${unavailable ? 'opacity-50' : ''}`}
+      style={{ background: 'var(--ms-surface)', boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 6px 16px -10px rgba(0,0,0,.12)' }}
+    >
+      <div className="relative shrink-0 pb-3" style={{ width: 104 }}>
+        <Thumb url={item.imageUrl} alt={item.name} size={104} />
+        {unavailable ? null : (
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-white" style={{ boxShadow: '0 4px 12px rgba(0,0,0,.18)' }}>
+            {qty > 0 && !hasVariants ? (
+              <Stepper small qty={qty} onMinus={onRemove} onPlus={onAdd} />
             ) : (
-              <>
-                <PriceDisplay base={item.price} variants={item.priceVariants} tone={priceTone} />
-              </>
+              <button
+                type="button"
+                onClick={onAdd}
+                aria-label={hasVariants ? `Choose option for ${item.name}` : `Add ${item.name}`}
+                className="relative flex h-8 min-w-[76px] items-center justify-center rounded-full px-4 text-[13px] font-bold active:scale-95"
+                style={{ color: 'var(--ms-primary)' }}
+              >
+                {hasVariants ? 'Choose' : 'Add'}
+                {qty > 0 && hasVariants ? (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] text-white" style={{ background: 'var(--ms-primary)' }}>{qty}</span>
+                ) : null}
+              </button>
             )}
           </div>
-          {unavailable ? null : qty > 0 && !hasVariants ? (
-            <Stepper small qty={qty} onMinus={onRemove} onPlus={onAdd} />
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col py-0.5">
+        <div className="flex items-start gap-2">
+          <h3 dir="auto" className="min-w-0 flex-1 text-[16px] font-semibold leading-snug tracking-tight">{item.name}</h3>
+          <span className="mt-1.5"><VegMark isVeg={item.isVeg} /></span>
+        </div>
+        {item.description ? (
+          <p dir="auto" className="mt-1 line-clamp-2 text-[13px] leading-snug" style={{ color: 'var(--ms-muted)' }}>{item.description}</p>
+        ) : null}
+        <div className="mt-auto pt-2">
+          {unavailable ? (
+            <span className="text-[13px] font-medium" style={{ color: 'var(--ms-muted)' }}>Sold out</span>
           ) : (
-            <button
-              type="button"
-              onClick={onAdd}
-              className="relative h-8 rounded-full px-4 text-[14px] font-semibold active:scale-95"
-              style={{ background: '#F0F0F3', color: 'var(--ms-primary)' }}
-            >
-              {hasVariants ? 'Choose' : 'Add'}
-              {qty > 0 && hasVariants ? (
-                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] text-white" style={{ background: 'var(--ms-primary)' }}>
-                  {qty}
-                </span>
-              ) : null}
-            </button>
+            <PriceDisplay base={item.price} variants={item.priceVariants} tone={priceTone} />
           )}
         </div>
       </div>
@@ -410,6 +548,17 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
   const [picking, setPicking] = useState<MenuItem | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
   const closePicker = useCallback(() => setPicking(null), []);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const closeDetails = useCallback(() => setDetailsOpen(false), []);
+
+  const posters = useMemo<Poster[]>(() => {
+    const raw = ((restaurant as any).posters || []) as any[];
+    const custom: Poster[] = raw.map((x) => (typeof x === 'string' ? { image: x } : x)).filter((x) => x && (x.image || x.title));
+    if (custom.length) return custom;
+    if (restaurant.heroImageUrl) return [{ image: restaurant.heroImageUrl, title: restaurant.tagline || restaurant.name }, ...SAMPLE_POSTERS.slice(1)];
+    return SAMPLE_POSTERS;
+  }, [restaurant]);
+  useEffect(() => { posters.forEach((x) => preload(x.image)); }, [posters]);
 
   const onAdd = (item: MenuItem) => {
     if (getVariants(item).length > 0) setPicking(item); else change(item, null, 1);
@@ -535,23 +684,26 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
       <style>{`@keyframes ms-up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
         @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}`}</style>
 
-      {/* hero */}
-      <section>
-        <div className="relative h-[240px] w-full overflow-hidden sm:h-[320px]" style={{ background: 'linear-gradient(135deg,#E31E24,#6B0B0F)' }}>
-          <HeroImg src={restaurant.heroImageUrl || SAMPLE_HERO} alt={`${restaurant.name} featured food`} />
-          <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 40%,rgba(0,0,0,.5) 100%)' }} />
-        </div>
-        <div className="mx-auto max-w-2xl px-4">
-          <div className="-mt-11 inline-block rounded-[24px] bg-white p-1.5" style={{ boxShadow: '0 6px 20px rgba(0,0,0,.18)' }}>
-            <Logo url={restaurant.logoUrl} size={72} />
+      {/* brand row + moving posters */}
+      <section className="mx-auto max-w-2xl px-3" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
+        <div className="flex items-center gap-3 pb-3">
+          <div className="shrink-0 rounded-[19px] bg-white p-1" style={{ boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}>
+            <Logo url={restaurant.logoUrl} size={48} />
           </div>
-          <h1 dir="auto" className="mt-3 text-[32px] leading-[1.05] tracking-tight sm:text-[44px]" style={heading}>
-            {restaurant.name}
-          </h1>
-          <p dir="auto" className="mt-1.5 text-[16px] leading-snug" style={{ color: 'var(--ms-muted)' }}>
-            {restaurant.tagline || 'Fresh, hot and made to order.'}
-          </p>
+          <div className="min-w-0 flex-1">
+            <h1 dir="auto" className="truncate text-[20px] leading-tight tracking-tight sm:text-[26px]" style={heading}>{restaurant.name}</h1>
+            <p dir="auto" className="truncate text-[13px]" style={{ color: 'var(--ms-muted)' }}>{restaurant.tagline || 'Fresh, hot and made to order.'}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDetailsOpen(true)}
+            className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 text-[14px] font-semibold transition active:scale-95"
+            style={{ boxShadow: '0 2px 10px rgba(0,0,0,.10)' }}
+          >
+            <Icon name="info" size={18} /> Details
+          </button>
         </div>
+        <Carousel posters={posters} />
       </section>
 
       {/* sticky bar: search + cart + categories */}
@@ -566,7 +718,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
             style={{ width: scrolled ? 40 : 0, marginRight: scrolled ? 8 : 0, opacity: scrolled ? 1 : 0 }}
             aria-hidden={!scrolled}
           >
-            <Logo url={restaurant.logoUrl} size={40} />
+            <button type="button" onClick={() => setDetailsOpen(true)} tabIndex={scrolled ? 0 : -1} aria-label="Restaurant details"><Logo url={restaurant.logoUrl} size={40} /></button>
           </div>
           <div className="relative min-w-0 flex-1">
             <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" fill="none" stroke="var(--ms-muted)" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -683,6 +835,11 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
           </button>
         </div>
       ) : null}
+
+      {/* details */}
+      <Sheet open={detailsOpen} onClose={closeDetails} title="Details">
+        <Details r={restaurant} />
+      </Sheet>
 
       {/* variant picker */}
       <Sheet open={!!picking} onClose={closePicker} title={picking?.name || ''}>
