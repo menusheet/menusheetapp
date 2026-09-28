@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PriceDisplay, PriceOptions } from '@/components/public/PriceDisplay';
 import type { PriceTone } from '@/components/public/PriceDisplay';
@@ -70,6 +72,56 @@ function CachedImg({ src, alt, className }: { src: string; alt: string; classNam
   );
 }
 
+const SAMPLE_HERO =
+  'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=70';
+
+function SampleLogo({ size }: { size: number }) {
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} role="img" aria-label="Logo" className="shrink-0">
+      <rect width="64" height="64" rx="16" fill="#E31E24" />
+      <path d="M14 30c0-9 8-15 18-15s18 6 18 15z" fill="#F4DD00" />
+      <circle cx="26" cy="23" r="1.5" fill="#fff" />
+      <circle cx="34" cy="20.5" r="1.5" fill="#fff" />
+      <circle cx="41" cy="24" r="1.5" fill="#fff" />
+      <rect x="12" y="33" width="40" height="5" rx="2.5" fill="#fff" />
+      <path d="M14 41h36c0 6-5 9-18 9s-18-3-18-9z" fill="#F4DD00" />
+    </svg>
+  );
+}
+
+function Logo({ url, size }: { url?: string | null; size: number }) {
+  const [bad, setBad] = useState(false);
+  if (url && !bad) {
+    return (
+      <img
+        src={url}
+        alt="Logo"
+        onError={() => setBad(true)}
+        className="shrink-0 bg-white object-contain"
+        style={{ width: size, height: size, borderRadius: size * 0.25 }}
+      />
+    );
+  }
+  return <SampleLogo size={size} />;
+}
+
+function HeroImg({ src, alt }: { src: string; alt: string }) {
+  const [bad, setBad] = useState(false);
+  const [ready, setReady] = useState(() => loadedImages.has(src));
+  if (bad) return null;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      decoding="async"
+      onError={() => setBad(true)}
+      onLoad={() => { loadedImages.add(src); setReady(true); }}
+      className="h-full w-full object-cover"
+      style={{ opacity: ready ? 1 : 0, transition: 'opacity .3s ease' }}
+    />
+  );
+}
+
 function Thumb({ url, alt, size }: { url?: string | null; alt: string; size: number }) {
   return (
     <div
@@ -104,34 +156,6 @@ function getVariants(item: MenuItem): Variant[] {
 
 function slugify(v: string) {
   return v.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
-}
-
-function matchItem(item: MenuItem, q: string): boolean {
-  if (!q) return true;
-  const hay =
-    `${item.name} ${item.description ?? ''} ${item.category ?? ''} ${getVariants(item).map((v) => v.label).join(' ')}`.toLowerCase();
-  return hay.includes(q);
-}
-
-const icon = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' } as React.SVGProps<SVGSVGElement>;
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[18px] w-[18px]" {...icon}>
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
-  );
-}
-
-function CartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[19px] w-[19px]" {...icon}>
-      <circle cx="9" cy="21" r="1" />
-      <circle cx="20" cy="21" r="1" />
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-    </svg>
-  );
 }
 
 /* ───────────── small UI ───────────── */
@@ -184,7 +208,7 @@ function Sheet({ open, onClose, title, children, footer }: { open: boolean; onCl
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={body} role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
       <div
-        className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] sm:rounded-[28px]"
+        className="relative flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] sm:rounded-[28px]"
         style={{ background: 'var(--ms-background)', color: 'var(--ms-text)', animation: 'ms-up .28s cubic-bezier(.2,.8,.2,1)' }}
       >
         <div className="flex items-center justify-between px-5 pb-2 pt-4">
@@ -194,7 +218,7 @@ function Sheet({ open, onClose, title, children, footer }: { open: boolean; onCl
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 pb-4">{children}</div>
-        {footer ? <div className="border-t p-4" style={{ borderColor: 'var(--ms-line)', ...glass }}>{footer}</div> : null}
+        {footer ? <div className="border-t p-4" style={{ borderColor: 'var(--ms-line)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', ...glass }}>{footer}</div> : null}
       </div>
     </div>
   );
@@ -333,17 +357,6 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
   }, [menu]);
   const categories = useMemo(() => groups.map((g) => g.category), [groups]);
 
-  /* search */
-  const [query, setQuery] = useState('');
-  const q = query.trim().toLowerCase();
-  const visibleGroups = useMemo(() => {
-    if (!q) return groups;
-    return groups
-      .map(({ category, items }) => ({ category, items: items.filter((item) => matchItem(item, q)) }))
-      .filter((g) => g.items.length > 0);
-  }, [groups, q]);
-  const visibleCategories = useMemo(() => visibleGroups.map((g) => g.category), [visibleGroups]);
-
   /* cart state (persisted) */
   const [cart, setCart] = useState<Cart>({});
   const [hydrated, setHydrated] = useState(false);
@@ -437,59 +450,75 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
     window.open(url, '_blank', 'noopener,noreferrer') || (window.location.href = url);
   };
 
-  /* scroll spy + nav */
-  const navRef = useRef<HTMLDivElement | null>(null);
-  const headerRef = useRef<HTMLElement | null>(null);
-  /* During a nav-chip jump the page is smooth-scrolling; the spy must not
-     re-highlight every section it passes or the chip row "walks" 3 → 2 → 1. */
-  const spyLock = useRef(false);
-  const [active, setActive] = useState<string | null>(null);
-  const current = active && visibleCategories.includes(active) ? active : visibleCategories[0] || null;
+  /* search */
+  const [q, setQ] = useState('');
+  const searching = q.trim().length > 0;
+  const shown = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return groups;
+    return groups
+      .map((g) => ({
+        category: g.category,
+        items: g.items.filter((i) => `${i.name} ${i.description || ''} ${g.category}`.toLowerCase().includes(t)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [groups, q]);
+  const resultCount = shown.reduce((n, g) => n + g.items.length, 0);
 
-  const headerHeight = () => headerRef.current?.getBoundingClientRect().height ?? 120;
-  const updateActive = useCallback(() => {
-    const threshold = Math.max(headerHeight() - 8, 96);
-    let found: string | null = null;
-    document.querySelectorAll<HTMLElement>('[data-cat]').forEach((el) => {
-      if (el.getBoundingClientRect().top <= threshold) found = el.dataset.cat || null;
-    });
-    setActive((prev) => (prev === found ? prev : found));
-  }, []);
+  /* scroll spy + nav.
+     Bug fix: clicking a tab used to let the spy re-highlight every category the smooth
+     scroll passed. Now the spy is locked while a programmatic scroll runs and only
+     resumes ~140ms after scrolling stops. The last section (too short to reach the top)
+     is also handled by the "page bottom" rule. */
+  const navRef = useRef<HTMLDivElement | null>(null);
+  const headRef = useRef<HTMLElement | null>(null);
+  const lock = useRef(false);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [active, setActive] = useState<string | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const current = active && categories.includes(active) ? active : categories[0] || null;
 
   useEffect(() => {
     if (status !== 'ok') return;
     const onScroll = () => {
-      if (!spyLock.current) updateActive();
+      setScrolled(window.scrollY > 260);
+      if (searching) return;
+      if (lock.current) {
+        clearTimeout(lockTimer.current);
+        lockTimer.current = setTimeout(() => { lock.current = false; onScroll(); }, 140);
+        return;
+      }
+      const offset = (headRef.current?.offsetHeight || 110) + 24;
+      let found: string | null = null;
+      document.querySelectorAll<HTMLElement>('[data-cat]').forEach((el) => {
+        if (el.getBoundingClientRect().top <= offset) found = el.dataset.cat || null;
+      });
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+        found = categories[categories.length - 1] ?? found;
+      }
+      setActive(found);
     };
-    updateActive();
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [status, updateActive, visibleGroups]);
+  }, [status, groups, categories, searching]);
 
   useEffect(() => {
-    if (!current) return;
-    navRef.current?.querySelector<HTMLElement>(`[data-nav="${CSS.escape(current)}"]`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    const nav = navRef.current;
+    if (!nav || !current) return;
+    const btn = nav.querySelector<HTMLElement>(`[data-nav="${CSS.escape(current)}"]`);
+    if (btn) nav.scrollTo({ left: btn.offsetLeft - nav.clientWidth / 2 + btn.offsetWidth / 2, behavior: 'smooth' });
   }, [current]);
 
   const jump = (cat: string) => {
-    if (spyLock.current || !status) return;
-    setActive(cat);
     const el = document.querySelector<HTMLElement>(`[data-cat="${CSS.escape(cat)}"]`);
     if (!el) return;
-    spyLock.current = true;
-    window.scrollTo({
-      top: el.getBoundingClientRect().top + window.scrollY - headerHeight() + 8,
-      behavior: 'smooth',
-    });
-    const release = () => {
-      spyLock.current = false;
-      updateActive();
-    };
-    // Release when the smooth scroll actually ends, with a timeout fallback.
-    const supportsScrollend = 'onscrollend' in window;
-    window.addEventListener('scrollend', release, { once: true });
-    if (!supportsScrollend) window.setTimeout(release, 900);
+    setActive(cat);
+    lock.current = true;
+    clearTimeout(lockTimer.current);
+    lockTimer.current = setTimeout(() => { lock.current = false; }, 500);
+    const offset = (headRef.current?.offsetHeight || 110) + 8;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth' });
   };
 
   const shell = { ...cssVars, ...body, background: 'var(--ms-background)', color: 'var(--ms-text)' } as React.CSSProperties;
@@ -502,139 +531,133 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
   const pickerVariants = picking ? getVariants(picking) : [];
 
   return (
-    <div className="min-h-screen w-full" style={shell}>
+    <div className="min-h-[100dvh] w-full" style={shell}>
       <style>{`@keyframes ms-up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
         @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}`}</style>
 
-      {/* top bar */}
-      <header ref={headerRef} className="sticky top-0 z-30 border-b" style={{ ...glass, borderColor: 'var(--ms-line)' }}>
-        <div className="mx-auto max-w-2xl px-4 pb-2 pt-2">
-          <div className="flex h-9 items-center justify-between gap-3">
-            <span dir="auto" className="min-w-0 truncate text-[15px] font-semibold tracking-tight">{restaurant.name}</span>
-            <button
-              type="button"
-              onClick={() => setSheet('cart')}
-              aria-label={`Open cart, ${count} items`}
-              className="relative flex h-9 w-9 flex-none items-center justify-center rounded-full transition active:scale-90"
-              style={{ background: '#E4E4E8', color: 'var(--ms-text)' }}
-            >
-              <CartIcon />
-              {count > 0 ? (
-                <span
-                  className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-semibold text-white ring-2"
-                  style={{ background: 'var(--ms-primary)', ['--tw-ring-color' as string]: 'rgba(255,255,255,0.85)' }}
-                >
-                  {count > 99 ? '99+' : count}
-                </span>
-              ) : null}
-            </button>
-          </div>
-
-          {groups.length > 0 ? (
-            <div className="relative mt-2">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ms-muted)' }}>
-                <SearchIcon />
-              </span>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search dishes..."
-                aria-label="Search dishes"
-                className="h-10 w-full rounded-full border border-transparent pl-10 pr-9 text-[15px] outline-none transition focus:border-transparent focus:ring-2 [&::-webkit-search-cancel-button]:hidden"
-                style={{ background: 'rgba(0,0,0,0.05)', ['--tw-ring-color' as string]: 'var(--ms-primary)' }}
-              />
-              {query ? (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  aria-label="Clear search"
-                  className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[15px] leading-none"
-                  style={{ background: 'rgba(0,0,0,0.08)', color: 'var(--ms-muted)' }}
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
-          {visibleCategories.length > 0 ? (
-            <nav aria-label="Menu categories" className="mt-2">
-              <div ref={navRef} className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {visibleCategories.map((cat) => {
-                  const on = cat === current;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      data-nav={cat}
-                      onClick={() => jump(cat)}
-                      aria-current={on ? 'true' : undefined}
-                      className="flex-none whitespace-nowrap rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-colors"
-                      style={{ background: on ? 'var(--ms-text)' : 'transparent', color: on ? '#fff' : 'var(--ms-muted)' }}
-                    >
-                      <span dir="auto">{cat}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </nav>
-          ) : null}
-        </div>
-      </header>
-
       {/* hero */}
-      <section className="mx-auto max-w-2xl px-4 pb-4 pt-10 text-center">
-        {restaurant.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={restaurant.logoUrl} alt={`${restaurant.name} logo`} className="mx-auto mb-4 h-16 w-auto object-contain" />
-        ) : null}
-        <h1 dir="auto" className="text-[40px] leading-[1.05] tracking-tight sm:text-[56px]" style={heading}>
-          {restaurant.name}
-        </h1>
-        {restaurant.tagline ? (
-          <p dir="auto" className="mx-auto mt-3 max-w-md text-[17px] leading-snug" style={{ color: 'var(--ms-muted)' }}>
-            {restaurant.tagline}
-          </p>
-        ) : null}
-        {restaurant.heroImageUrl ? (
-          <div className="mt-8 overflow-hidden rounded-[28px]" style={{ background: '#EDEDF0' }}>
-            <CachedImg src={restaurant.heroImageUrl} alt={`${restaurant.name} featured food`} className="h-[34vh] max-h-[360px] w-full object-cover" />
+      <section>
+        <div className="relative h-[240px] w-full overflow-hidden sm:h-[320px]" style={{ background: 'linear-gradient(135deg,#E31E24,#6B0B0F)' }}>
+          <HeroImg src={restaurant.heroImageUrl || SAMPLE_HERO} alt={`${restaurant.name} featured food`} />
+          <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 40%,rgba(0,0,0,.5) 100%)' }} />
+        </div>
+        <div className="mx-auto max-w-2xl px-4">
+          <div className="-mt-11 inline-block rounded-[24px] bg-white p-1.5" style={{ boxShadow: '0 6px 20px rgba(0,0,0,.18)' }}>
+            <Logo url={restaurant.logoUrl} size={72} />
           </div>
-        ) : null}
+          <h1 dir="auto" className="mt-3 text-[32px] leading-[1.05] tracking-tight sm:text-[44px]" style={heading}>
+            {restaurant.name}
+          </h1>
+          <p dir="auto" className="mt-1.5 text-[16px] leading-snug" style={{ color: 'var(--ms-muted)' }}>
+            {restaurant.tagline || 'Fresh, hot and made to order.'}
+          </p>
+        </div>
       </section>
 
-      {/* menu */}
-      <main className="mx-auto max-w-2xl px-4 pt-6">
-        {visibleGroups.length === 0 ? (
-          <div className="rounded-[22px] py-14 text-center" style={{ background: 'var(--ms-surface)' }}>
+      {/* sticky bar: search + cart + categories */}
+      <header
+        ref={headRef}
+        className="sticky top-0 z-30 mt-4 border-b"
+        style={{ ...glass, borderColor: 'var(--ms-line)', paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="mx-auto flex max-w-2xl items-center px-3 pt-2.5" style={{ paddingBottom: searching || categories.length === 0 ? 10 : 0 }}>
+          <div
+            className="shrink-0 overflow-hidden transition-all duration-200"
+            style={{ width: scrolled ? 40 : 0, marginRight: scrolled ? 8 : 0, opacity: scrolled ? 1 : 0 }}
+            aria-hidden={!scrolled}
+          >
+            <Logo url={restaurant.logoUrl} size={40} />
+          </div>
+          <div className="relative min-w-0 flex-1">
+            <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" fill="none" stroke="var(--ms-muted)" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search the menu"
+              aria-label="Search the menu"
+              className="h-11 w-full rounded-full pl-10 pr-10 text-[16px] outline-none focus:ring-2 [&::-webkit-search-cancel-button]:hidden"
+              style={{ background: '#E9E9ED', ['--tw-ring-color' as string]: 'var(--ms-primary)' }}
+            />
             {q ? (
-              <>
-                <p className="text-[17px] font-semibold">No dishes match &ldquo;{query.trim()}&rdquo;</p>
-                <p className="mt-1 text-[14px]" style={{ color: 'var(--ms-muted)' }}>Try a different search.</p>
-              </>
-            ) : (
-              <>
-                <p className="text-[17px] font-semibold">No items available right now</p>
-                <p className="mt-1 text-[14px]" style={{ color: 'var(--ms-muted)' }}>Please check back soon.</p>
-              </>
-            )}
+              <button type="button" aria-label="Clear search" onClick={() => setQ('')} className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-base" style={{ color: 'var(--ms-muted)' }}>
+                ✕
+              </button>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => setSheet('cart')}
+            aria-label={`Open cart, ${count} items`}
+            className="relative ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition active:scale-95"
+            style={{ background: count ? 'var(--ms-primary)' : '#E9E9ED', color: count ? '#fff' : 'var(--ms-text)' }}
+          >
+            <svg viewBox="0 0 24 24" className="h-[20px] w-[20px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 8h14l-1 12H6L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" />
+            </svg>
+            {count ? (
+              <span className="absolute -right-1 -top-1 flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-1 text-[11px] font-bold" style={{ background: 'var(--ms-secondary)', color: 'var(--ms-text)' }}>
+                {count}
+              </span>
+            ) : null}
+          </button>
+        </div>
+
+        {categories.length > 0 && !searching ? (
+          <nav aria-label="Menu categories" className="mx-auto max-w-2xl">
+            <div ref={navRef} className="relative flex gap-1.5 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {categories.map((cat) => {
+                const on = cat === current;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    data-nav={cat}
+                    onClick={() => jump(cat)}
+                    aria-current={on ? 'true' : undefined}
+                    className="h-9 flex-none whitespace-nowrap rounded-full px-4 text-[14px] font-medium transition-colors"
+                    style={{ background: on ? 'var(--ms-text)' : '#E9E9ED', color: on ? '#fff' : 'var(--ms-text)' }}
+                  >
+                    <span dir="auto">{cat}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        ) : null}
+      </header>
+
+      {/* menu */}
+      <main className="mx-auto max-w-2xl px-3 pt-5 sm:px-4">
+        {searching ? (
+          <p className="mb-3 px-1 text-[13px]" style={{ color: 'var(--ms-muted)' }}>
+            {resultCount} {resultCount === 1 ? 'result' : 'results'} for “{q.trim()}”
+          </p>
+        ) : null}
+        {shown.length === 0 ? (
+          <div className="rounded-[22px] px-6 py-14 text-center" style={{ background: 'var(--ms-surface)' }}>
+            <p className="text-[17px] font-semibold">{searching ? 'Nothing matches your search' : 'No items available right now'}</p>
+            <p className="mt-1 text-[14px]" style={{ color: 'var(--ms-muted)' }}>
+              {searching ? 'Try a different word or clear the search.' : 'Please check back soon.'}
+            </p>
+            {searching ? (
+              <button type="button" onClick={() => setQ('')} className="mt-4 h-10 rounded-full px-5 text-[14px] font-semibold text-white" style={{ background: 'var(--ms-primary)' }}>
+                Clear search
+              </button>
+            ) : null}
           </div>
         ) : (
-          <div className="space-y-10">
-            {visibleGroups.map(({ category, items }) => (
+          <div className="space-y-9">
+            {shown.map(({ category, items }) => (
               <section key={category} id={`cat-${slugify(category)}`} data-cat={category} aria-labelledby={`h-${slugify(category)}`}>
-                <div className="mb-3 flex items-baseline justify-between px-1">
-                  <h2 dir="auto" id={`h-${slugify(category)}`} className="text-[28px] font-bold tracking-tight">
-                    {category}
-                  </h2>
-                  {q ? (
-                    <span className="text-[13px]" style={{ color: 'var(--ms-muted)' }}>
-                      {items.length} {items.length === 1 ? 'match' : 'matches'}
-                    </span>
-                  ) : null}
-                </div>
-                <ul className="grid grid-cols-1 gap-3">
+                <h2 dir="auto" id={`h-${slugify(category)}`} className="mb-3 px-1 text-[26px] font-bold tracking-tight">
+                  {category}
+                </h2>
+                <ul className="grid grid-cols-1 gap-2.5">
                   {items.map((item) => (
                     <ItemRow key={item.id} item={item} qty={qtyOf(String(item.id))} onAdd={() => onAdd(item)} onRemove={() => onRemove(item)} />
                   ))}
