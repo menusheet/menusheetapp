@@ -221,15 +221,6 @@ function readSettingsTab() {
 
 function readMenuTab() {
   var sh = getMenuSheet_();
-https://script.google.com/macros/s/AKfycbx__j39nHVUdMwz4XjwVD3tGcqIzvN_MqESgbg-AeLFYPJb6A1psOsbOmmyfHWi6Gc6wg/exec
-Request Method
-POST
-Status Code
-302 Found
-Remote Address
-[2404:6800:4007:83a::200e]:443
-Referrer Policy
-strict-origin-when-cross-origin
 
   var values = sh.getDataRange().getValues();
   if (values.length < 2) return [];
