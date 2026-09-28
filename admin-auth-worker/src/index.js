@@ -211,12 +211,12 @@ async function readJson(request) {
  *
  * `body` must be passed in already parsed — a request body can only be read once.
  */
-async function proxyToAppsScript(request, env, action, targetOverride, body) {
+async function proxyToAppsScript(request, env, action, targetOverride, body, cors) {
   const url = targetOverride || env.ADMIN_APPS_SCRIPT_URL;
-  if (!url) return json({ error: 'Admin Apps Script URL is not configured on the Worker.' }, 500);
+  if (!url) return json({ error: 'Admin Apps Script URL is not configured on the Worker.' }, 500, cors);
 
   if (targetOverride && !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(targetOverride)) {
-    return json({ error: 'Invalid target script URL.' }, 400);
+    return json({ error: 'Invalid target script URL.' }, 400, cors);
   }
 
   let upstream;
@@ -235,9 +235,32 @@ async function proxyToAppsScript(request, env, action, targetOverride, body) {
   }
 
   const text = await upstream.text();
+
+  // Apps Script answers with an HTML error page when the script throws, and a
+  // login/permission page when the deployment is not public. Either way the
+  // body is not JSON, and the client would silently render an empty result.
+  // Convert it into a real error so the dashboard can show what went wrong.
+  const contentType = upstream.headers.get('Content-Type') || '';
+  if (!contentType.includes('application/json')) {
+    const reason =
+      /Error:\s*unauthorized/i.test(text) ? 'Apps Script rejected SHARED_SECRET.'
+      : /Sign in|accounts\.google\.com\/ServiceLogin/i.test(text) ? 'Apps Script deployment is not public (needs Access: Anyone).'
+      : /Script function not found|Could not find function|function .* not found/i.test(text) ? 'Apps Script deployment is missing this action — redeploy the script.'
+      : 'Apps Script returned a non-JSON error page (see detail).';
+    const detail = (text.match(/Error:\s*([^<]+)/) || [])[1];
+    return json(
+      { error: reason, action, detail: detail ? detail.trim() : undefined, upstreamStatus: upstream.status },
+      502,
+      cors
+    );
+  }
+
+  // The CORS headers must ride on the success path too. Without them the
+  // browser discards a perfectly good 200 and fetch() rejects with a generic
+  // "Failed to fetch", which is what the dashboard was reporting.
   return new Response(text, {
     status: upstream.status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...cors },
   });
 }
 
@@ -247,7 +270,13 @@ export default {
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders(request, env) });
+      // no-store matters: a cached 204 keeps a stale Access-Control-Allow-Origin
+      // after ALLOWED_ORIGINS changes, which breaks the dashboard until the
+      // cache expires.
+      return new Response(null, {
+        status: 204,
+        headers: { ...corsHeaders(request, env), 'Cache-Control': 'no-store' },
+      });
     }
 
     if (!isAllowedOrigin(request, env)) {
@@ -318,7 +347,7 @@ export default {
           ? body.appscript_url
           : undefined;
 
-      return proxyToAppsScript(request, env, action, target, body);
+      return proxyToAppsScript(request, env, action, target, body, cors);
     }
 
     return json({ error: 'Not found.' }, 404, cors);
