@@ -6,9 +6,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '(not set)';
-const allowedEmails = process.env.NEXT_PUBLIC_ADMIN_ALLOWED_EMAILS || '(not set)';
-const secretConfigured = Boolean(process.env.NEXT_PUBLIC_SHARED_SECRET);
+const authWorkerUrl = process.env.NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL || '(not set)';
 
 export default function AdminSettingsPage() {
   return (
@@ -21,32 +19,29 @@ export default function AdminSettingsPage() {
         </p>
       </div>
 
-      <Card title="Admin access (Supabase Authentication)">
+      <Card title="Admin access (Cloudflare Worker)">
         <p className="text-sm leading-relaxed text-gray-600">
-          Sign-in runs through Supabase Auth (Email/Password). After sign-in, the account email
-          must be on the allow-list or the dashboard signs it out immediately. Manage actual user
-          accounts in the Supabase dashboard:
+          Sign-in is handled by the MenuSheet auth Worker, which verifies your credentials and
+          issues a signed, HttpOnly session cookie. Credentials and session signing live as
+          encrypted secrets on the Worker — they are never sent to the browser and never appear
+          in this page&apos;s JavaScript.
         </p>
-        <a
-          href="https://supabase.com/dashboard"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-block rounded-full bg-forest-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-forest-800"
-        >
-          Open Supabase → Authentication → Users ↗
-        </a>
-        <Row label="Supabase project URL" value={supabaseUrl} mono />
-        <Row label="Allowed emails" value={allowedEmails} mono />
-        <Hint>Env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY and NEXT_PUBLIC_ADMIN_ALLOWED_EMAILS in .env.local</Hint>
+        <Row label="Auth worker" value={authWorkerUrl} mono />
+        <Hint>
+          Env var: NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL. Change the operator email or password with{' '}
+          <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs">wrangler secret put ADMIN_EMAIL</code>{' '}
+          / <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs">ADMIN_PASSWORD</code> in
+          the admin-auth-worker directory.
+        </Hint>
       </Card>
 
       <Card title="Shared secret (Apps Script)">
         <p className="text-sm leading-relaxed text-gray-600">
-          The SHARED_SECRET gates all write actions against your Google Sheets (add/update restaurant,
-          update settings, worker reconciliation). It is embedded in this dashboard bundle by design —
-          treat it as rotatable and keep it out of any public repo history.
+          SHARED_SECRET gates all write actions against your Google Sheets (add/update restaurant,
+          update settings, worker reconciliation). It is held only on the auth Worker and injected
+          upstream server-side — it is no longer embedded in this dashboard bundle.
         </p>
-        <Row label="Configured" value={secretConfigured ? 'Yes' : 'No — set NEXT_PUBLIC_SHARED_SECRET'} />
+        <Row label="Holds SHARED_SECRET" value="Auth Worker (server-side only)" />
         <Hint>
           Rotation runbook: docs/onboarding-checklist.md § SHARED_SECRET rotation. Remember existing
           restaurants&apos; deployed scripts keep the old secret until you redeploy their script too.

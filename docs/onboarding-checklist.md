@@ -7,10 +7,18 @@ work) plus operational runbooks for deploys, renewals and secret rotation.
 
 ## One-time platform setup (skip if already done)
 
-1. **Supabase project** — create at <https://supabase.com>, then:
-   - Authentication → Providers → enable **Email** (Email/Password).
-   - Authentication → Users → create the operator account(s).
-   - Settings → API → copy the Project URL and Publishable Key into `.env.local` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
+1. **Auth Worker** — `cd admin-auth-worker`, then set the encrypted secrets and deploy:
+   ```bash
+   wrangler secret put ADMIN_EMAIL       # operator login email
+   wrangler secret put ADMIN_PASSWORD    # operator login password
+   wrangler secret put SESSION_SECRET    # long random HMAC key
+   wrangler secret put SHARED_SECRET     # same value as the Admin Apps Script
+   wrangler deploy
+   ```
+   Copy the resulting `*.workers.dev` URL into `NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL`.
+   To serve it from your own domain (recommended, keeps the session cookie
+   same-site), add a route in `admin-auth-worker/wrangler.toml` and list that origin
+   in `ALLOWED_ORIGINS`.
 2. **Admin Google Sheet** — copy `docs/sheet-templates/admin-restaurants.csv` into a new
    Google Sheet tab named `Restaurants`.
 3. **Admin Apps Script** — paste `apps-script/admin.gs` into that sheet's script editor,
@@ -19,8 +27,9 @@ work) plus operational runbooks for deploys, renewals and secret rotation.
    - Fill `ADMIN_APPS_SCRIPT_URL` in `wrangler.toml`.
    - `wrangler secret put SHARED_SECRET`
    - `wrangler deploy`
-5. **Frontend env** — fill `.env.local` from `.env.example` (site URL, Supabase keys,
-   allow-list, both Apps Script URL/secret pairs). This is for **local dev only**.
+5. **Frontend env** — fill `.env.local` from `.env.example` (site URL, auth Worker URL,
+   menu cache TTL). This is for **local dev only**. Note that admin credentials and
+   `SHARED_SECRET` are deliberately absent: they live only on the auth Worker.
 6. **Cloudflare Pages** — connect this repo (Build command `npm run build`, output
    directory `out`, framework preset `None`), then add every `NEXT_PUBLIC_*` var as
    **Plaintext** under *Settings → Environment variables* for **both** Production and
@@ -96,16 +105,15 @@ Cloudflare Pages rebuilds from the commit. If you deploy locally instead, run
 
 ## SHARED_SECRET rotation runbook
 
-The dashboard bundle necessarily contains `NEXT_PUBLIC_SHARED_SECRET` (no-backend
-trade-off). If it ever leaks:
+The dashboard bundle no longer contains `SHARED_SECRET` — the auth Worker injects it
+server-side. If the secret is ever compromised anyway, or you are rotating it
+proactively:
 
 1. Generate a new secret.
-2. Update it in **all four** places:
-   - `.env.local` → `NEXT_PUBLIC_SHARED_SECRET` **and** `SHARED_SECRET` → rebuild +
-     redeploy the frontend.
+2. Update it in **three** places:
+   - `admin-auth-worker` → `wrangler secret put SHARED_SECRET` → `wrangler deploy`.
    - `apps-script/admin.gs` on the **Admin** Sheet → save a **new deployment**
      (or "Manage deployments" → edit → new version).
-   - `cloudflare-worker` → `wrangler secret put SHARED_SECRET`.
    - `apps-script/restaurant-template.gs` used for **future** onboarding docs.
 3. Existing restaurants' already-deployed scripts keep the old secret until you update
    each one manually (open their script, change `SHARED_SECRET`, deploy new version).
@@ -122,5 +130,5 @@ trade-off). If it ever leaks:
 | Menu page shows baked snapshot, never updates | Wrong `appscript_url`, or Web App not re-deployed after code changes | Re-check the `/exec` URL; ensure latest deployment version |
 | Worker marks everything stale | Restaurant scripts still on old secret after rotation | Update each script per rotation runbook |
 | New restaurant 404s publicly | Added after last build | Rebuild + redeploy |
-| Admin login rejected despite valid email | Email not in allow-list | Add to `NEXT_PUBLIC_ADMIN_ALLOWED_EMAILS`, rebuild |
+| Admin login rejected despite valid credentials | Worker secret not set, or `ALLOWED_ORIGINS` does not include the site origin | `wrangler secret put ADMIN_PASSWORD`; check the origin against `ALLOWED_ORIGINS` in `admin-auth-worker/wrangler.toml` |
 | `getSettings` returns `unauthorized` | Secret mismatch between Worker/script | Align secrets, redeploy both sides |

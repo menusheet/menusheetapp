@@ -1,10 +1,6 @@
 const REQUIRED_PUBLIC_ENV = [
   'NEXT_PUBLIC_SITE_URL',
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
-  'NEXT_PUBLIC_ADMIN_ALLOWED_EMAILS',
-  'NEXT_PUBLIC_ADMIN_APPS_SCRIPT_URL',
-  'NEXT_PUBLIC_SHARED_SECRET',
+  'NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL',
 ];
 
 if (process.env.NODE_ENV === 'production') {
@@ -23,7 +19,11 @@ if (process.env.NODE_ENV === 'production') {
         '  the Cloudflare build container.\n' +
         '\n' +
         'Local build:\n' +
-        '  copy the values into `.env.local` (see `.env.example`).\n'
+        '  copy the values into `.env.local` (see `.env.example`).\n' +
+        '\n' +
+        'Note: admin credentials and SHARED_SECRET are NOT build-time vars. They\n' +
+        'live as encrypted secrets on the admin-auth Worker (see\n' +
+        'admin-auth-worker/wrangler.toml) and are never exposed to the browser.\n'
     );
   }
 }

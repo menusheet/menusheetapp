@@ -1,0 +1,15 @@
+name = "menusheet-admin-auth"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+account_id = "711ec981986c84d300e11828528f64ec"
+
+# Secrets — set with `wrangler secret put <NAME>`, NOT here.
+#   ADMIN_EMAIL       operator login email
+#   ADMIN_PASSWORD    operator login password
+#   SESSION_SECRET    HMAC key for signing session cookies (use a long random string)
+#   SHARED_SECRET     shared with the Admin Apps Script + reconciler Worker
+
+[vars]
+ADMIN_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnc3D0CP-LRQKFehDU4FaytuDYJzSE8wb7Szisgsu-KHE9EsLeE05cq-UhcqTLkxW1rw/exec"
+# Comma-separated Pages origins allowed to call this Worker with credentials.
+ALLOWED_ORIGINS = "https://menusheetapp.pages.dev,http://localhost:3000"
