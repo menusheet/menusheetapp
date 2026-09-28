@@ -167,7 +167,7 @@ function Carousel({ posters }: { posters: Poster[] }) {
 
   const hold = () => { holdUntil.current = Date.now() + 8000; };
   return (
-    <div className="relative overflow-hidden rounded-[28px]" style={{ aspectRatio: '16 / 10', boxShadow: '0 12px 32px -12px rgba(0,0,0,.35)' }} role="region" aria-roledescription="carousel" aria-label="Offers">
+    <div className="relative overflow-hidden rounded-[28px]" style={{ aspectRatio: '16 / 7', boxShadow: '0 12px 32px -12px rgba(0,0,0,.35)' }} role="region" aria-roledescription="carousel" aria-label="Offers">
       <div
         ref={ref}
         onScroll={(e) => setI(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
@@ -305,10 +305,18 @@ function VegMark({ isVeg }: { isVeg: boolean }) {
     <span
       role="img"
       aria-label={isVeg ? 'Vegetarian' : 'Non-vegetarian'}
-      className="inline-flex h-[13px] w-[13px] shrink-0 items-center justify-center rounded-[3px] border"
-      style={{ borderColor: c }}
+      className="inline-flex h-[22px] min-w-[80px] shrink-0 items-center justify-center gap-1.5 rounded-full border px-2.5"
+      style={{ borderColor: c, background: isVeg ? 'rgba(31,122,61,.10)' : 'rgba(227,30,36,.10)' }}
     >
-      <span className="h-[6px] w-[6px] rounded-full" style={{ background: c }} />
+      <span
+        className="inline-flex h-[12px] w-[12px] shrink-0 items-center justify-center rounded-[3px] border"
+        style={{ borderColor: c }}
+      >
+        <span className="h-[5px] w-[5px] rounded-full" style={{ background: c }} />
+      </span>
+      <span className="text-[10px] font-bold uppercase tracking-[.06em]" style={{ color: c }}>
+        {isVeg ? 'Veg' : 'Non-veg'}
+      </span>
     </span>
   );
 }
@@ -384,45 +392,43 @@ function ItemRow({ item, qty, onAdd, onRemove }: { item: MenuItem; qty: number; 
   const hasVariants = getVariants(item).length > 0;
   return (
     <li
-      className={`flex gap-3.5 rounded-[24px] p-3 ${unavailable ? 'opacity-50' : ''}`}
+      className={`relative flex gap-3.5 rounded-[24px] p-3 ${unavailable ? 'opacity-50' : ''}`}
       style={{ background: 'var(--ms-surface)', boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 6px 16px -10px rgba(0,0,0,.12)' }}
     >
-      <div className="relative shrink-0 pb-3" style={{ width: 104 }}>
+      <div className="shrink-0">
         <Thumb url={item.imageUrl} alt={item.name} size={104} />
-        {unavailable ? null : (
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-white" style={{ boxShadow: '0 4px 12px rgba(0,0,0,.18)' }}>
-            {qty > 0 && !hasVariants ? (
-              <Stepper small qty={qty} onMinus={onRemove} onPlus={onAdd} />
-            ) : (
-              <button
-                type="button"
-                onClick={onAdd}
-                aria-label={hasVariants ? `Choose option for ${item.name}` : `Add ${item.name}`}
-                className="relative flex h-8 min-w-[76px] items-center justify-center rounded-full px-4 text-[13px] font-bold active:scale-95"
-                style={{ color: 'var(--ms-primary)' }}
-              >
-                {hasVariants ? 'Choose' : 'Add'}
-                {qty > 0 && hasVariants ? (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] text-white" style={{ background: 'var(--ms-primary)' }}>{qty}</span>
-                ) : null}
-              </button>
-            )}
-          </div>
-        )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col py-0.5">
         <div className="flex items-start gap-2">
-          <h3 dir="auto" className="min-w-0 flex-1 text-[16px] font-semibold leading-snug tracking-tight">{item.name}</h3>
-          <span className="mt-1.5"><VegMark isVeg={item.isVeg} /></span>
+          <h3 dir="auto" className="min-w-0 flex-1 pr-[92px] text-[16px] font-semibold leading-snug tracking-tight">{item.name}</h3>
         </div>
+        <span className="absolute right-3 top-3"><VegMark isVeg={item.isVeg} /></span>
         {item.description ? (
           <p dir="auto" className="mt-1 line-clamp-2 text-[13px] leading-snug" style={{ color: 'var(--ms-muted)' }}>{item.description}</p>
         ) : null}
-        <div className="mt-auto pt-2">
-          {unavailable ? (
-            <span className="text-[13px] font-medium" style={{ color: 'var(--ms-muted)' }}>Sold out</span>
+        <div className="mt-auto flex items-end justify-between gap-2 pt-2">
+          <div className="min-w-0">
+            {unavailable ? (
+              <span className="text-[13px] font-medium" style={{ color: 'var(--ms-muted)' }}>Sold out</span>
+            ) : (
+              <PriceDisplay base={item.price} variants={item.priceVariants} tone={priceTone} />
+            )}
+          </div>
+          {unavailable ? null : qty > 0 && !hasVariants ? (
+            <Stepper small qty={qty} onMinus={onRemove} onPlus={onAdd} />
           ) : (
-            <PriceDisplay base={item.price} variants={item.priceVariants} tone={priceTone} />
+            <button
+              type="button"
+              onClick={onAdd}
+              aria-label={hasVariants ? `Choose option for ${item.name}` : `Add ${item.name}`}
+              className="relative flex h-8 min-w-[76px] shrink-0 items-center justify-center rounded-full px-4 text-[13px] font-bold active:scale-95"
+              style={{ background: '#F0F0F3', color: 'var(--ms-primary)' }}
+            >
+              {hasVariants ? 'Choose' : 'Add'}
+              {qty > 0 && hasVariants ? (
+                <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] text-white" style={{ background: 'var(--ms-primary)' }}>{qty}</span>
+              ) : null}
+            </button>
           )}
         </div>
       </div>
