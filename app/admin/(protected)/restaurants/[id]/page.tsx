@@ -15,6 +15,7 @@ export function generateStaticParams() {
   }
 }
 
-export default function RestaurantDetailPage({ params }: { params: { id: string } }) {
-  return <RestaurantDetail restaurantId={params.id} />;
+export default async function RestaurantDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <RestaurantDetail restaurantId={id} />;
 }
