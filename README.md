@@ -52,9 +52,48 @@ npm run dev                  # http://localhost:3000 — demo restaurant works w
 
 ## Deploy
 
+Production deploys are a **git push**. Cloudflare Pages is connected to this repo and
+runs `npm run build`, then serves the `out/` directory.
+
+### Build settings (Cloudflare Pages)
+
+| Setting | Value |
+| --- | --- |
+| Framework preset | None |
+| Build command | `npm run build` |
+| Build output directory | `out` |
+| Root directory | `/` |
+
+### Environment variables (Cloudflare Pages)
+
+`next.config.js` sets `output: 'export'`, which means this is a fully static site and
+**all `NEXT_PUBLIC_*` values are inlined into the JS bundle at build time**. They are
+never read at runtime, so Cloudflare's runtime variables have no effect on them.
+
+Set these under **Settings → Environment variables** as **Plaintext**, for **both**
+Production and Preview:
+
+| Variable | Notes |
+| --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Canonical origin, e.g. `https://menusheetapp.pages.dev` |
+| `NEXT_PUBLIC_MENU_CACHE_TTL_HOURS` | Optional, defaults to `6` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable (anon) key |
+| `NEXT_PUBLIC_ADMIN_ALLOWED_EMAILS` | Comma-separated admin allow-list |
+| `NEXT_PUBLIC_ADMIN_APPS_SCRIPT_URL` | Admin Apps Script `/exec` URL |
+| `NEXT_PUBLIC_SHARED_SECRET` | Shared with the Admin Apps Script + Worker |
+
+`.env.local` is gitignored, so it is **only** for local development and local builds —
+it never reaches the Cloudflare build container. `next build` fails loudly if any
+required variable above is missing, rather than shipping a bundle with empty values.
+
+### Local deploy (fallback)
+
 ```bash
-npm run deploy
+npm run deploy    # npm run build && npx wrangler pages deploy out
 ```
+
+Note the project name in that script must match your Pages project.
 
 `prebuild` pulls fresh data from your Admin Sheet when `ADMIN_APPS_SCRIPT_URL` +
 `SHARED_SECRET` are set (falls back to committed data otherwise). New restaurants or
