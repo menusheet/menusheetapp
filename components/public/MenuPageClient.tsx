@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getTheme } from '@/themes';
 import { clearCache, readCache, writeCache } from '@/lib/menuCache';
+import { parsePrice } from '@/lib/price';
 import type { MenuPayload, MenuItem, RestaurantInfo } from '@/lib/types';
 
 interface Props {
@@ -25,12 +26,17 @@ function normalizeItem(raw: Record<string, unknown>): MenuItem {
     return isNaN(n) ? 0 : n;
   };
   const str = (v: unknown) => (v === null || v === undefined ? '' : String(v).trim());
+  const structuredVariants = Array.isArray(raw.priceVariants ?? raw.price_variants)
+    ? (raw.priceVariants ?? raw.price_variants) as unknown[]
+    : null;
+  const price = parsePrice(structuredVariants && structuredVariants.length ? structuredVariants : raw.price);
   return {
     id: str(raw.id) || Math.random().toString(36).slice(2),
     category: str(raw.category) || 'Menu',
     name: str(raw.name),
     description: str(raw.description),
-    price: num(raw.price),
+    price: price.base,
+    priceVariants: price.variants,
     imageUrl: str(raw.image_url ?? raw.imageUrl),
     isVeg: bool(raw.is_veg ?? raw.isVeg, true),
     isAvailable: bool(raw.is_available ?? raw.isAvailable, true),

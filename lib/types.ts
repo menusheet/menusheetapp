@@ -2,12 +2,21 @@ import type { ComponentType } from 'react';
 
 export type MenuStatus = 'ok' | 'inactive' | 'expired' | 'loading';
 
+export type { PriceVariant } from './price';
+import type { PriceVariant } from './price';
+
 export interface MenuItem {
   id: string;
   category: string;
   name: string;
   description: string;
+  /**
+   * Lowest price, so a plain `₹320` render and any existing consumer keep
+   * working unchanged when an item has variations. See `lib/price.ts`.
+   */
   price: number;
+  /** Ordered price options, or `[]` when the item has a single price. */
+  priceVariants: PriceVariant[];
   imageUrl: string;
   isVeg: boolean;
   isAvailable: boolean;

@@ -5,7 +5,16 @@ M003,Main Course,Dal Makhani,"Slow-cooked black lentils, butter",280,,TRUE,TRUE,
 M004,Main Course,Butter Chicken,"Tomato gravy, cream, tandoori chicken",380,,FALSE,TRUE,4
 M005,Beverages,Masala Chai,"House spice blend",80,,TRUE,TRUE,5
 M006,Desserts,Gulab Jamun,"Warm, rose syrup, pistachio",120,,TRUE,FALSE,6
+M007,Main Course,Margherita Pizza,"San Marzano tomato, fior di latte, basil","Small-220, Medium-320, Large-420",,TRUE,TRUE,7
 
+# The "price" column:
+#   - Most dishes: a single amount          320
+#   - Dishes with variations: options as    Small-220, Medium-320, Large-420
+#     Label-Amount, comma separated.
+#   Any labels work (Small/Mid/Large, Half/Full, custom, ...). The lowest
+#   amount is shown next to the dish, and the options expand on the menu
+#   page. Currency symbols (Rs., /-) are ignored; "1,200" is one price.
+#
 # Copy these header rows into two tabs of the restaurant's Google Sheet:
 #   Tab "Menu"     → the id..sort_order columns above (one dish per row)
 #   Tab "Settings" → Key/Value pairs as shown below

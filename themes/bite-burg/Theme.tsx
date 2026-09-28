@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { PriceDisplay, PriceOptions } from '@/components/public/PriceDisplay';
+import type { PriceTone } from '@/components/public/PriceDisplay';
 import type { MenuItem, ThemeProps } from '@/lib/types';
 
 const cssVars = {
@@ -42,21 +44,22 @@ function VegMark({ isVeg }: { isVeg: boolean }) {
   );
 }
 
-function Price({ value }: { value: number }) {
-  if (!value || value <= 0) return null;
-  return (
-    <span
-      className="whitespace-nowrap rounded-md px-2 py-[3px] text-[15px] font-black leading-none sm:text-base"
-      style={{
-        color: 'var(--ms-primary)',
-        background: 'color-mix(in srgb, var(--ms-primary) 10%, transparent)',
-        boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--ms-primary) 35%, transparent)',
-      }}
-    >
-      {value}
-    </span>
-  );
-}
+const priceTone: PriceTone = {
+  accent: 'var(--ms-primary)',
+  muted: 'var(--ms-muted)',
+  surface: 'color-mix(in srgb, var(--ms-primary) 10%, transparent)',
+  border: 'color-mix(in srgb, var(--ms-primary) 35%, transparent)',
+  radius: 'rounded-md',
+  priceClassName: 'whitespace-nowrap px-2 py-[3px] text-[13px] font-black leading-none sm:text-sm',
+  rangeClassName: 'whitespace-nowrap px-2 py-[3px] text-[12px] font-black leading-none sm:text-[13px]',
+  labelClassName: 'text-[11px] font-extrabold',
+  uppercase: true,
+};
+
+const priceBadge = {
+  background: 'color-mix(in srgb, var(--ms-primary) 10%, transparent)',
+  boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--ms-primary) 35%, transparent)',
+} as React.CSSProperties;
 
 function ItemCard({ item }: { item: MenuItem }) {
   const unavailable = !item.isAvailable;
@@ -112,13 +115,22 @@ function ItemCard({ item }: { item: MenuItem }) {
           </p>
         ) : null}
 
+        {unavailable ? null : (
+          <PriceOptions variants={item.priceVariants} tone={priceTone} className="mt-2" />
+        )}
+
         <div className="mt-auto flex items-end justify-between gap-2 pt-1.5">
           {unavailable ? (
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--ms-muted)' }}>
               Unavailable
             </span>
           ) : (
-            <Price value={item.price} />
+            <PriceDisplay
+              base={item.price}
+              variants={item.priceVariants}
+              tone={priceTone}
+              style={priceBadge}
+            />
           )}
         </div>
       </div>

@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
+import { PriceDisplay, PriceOptions } from '@/components/public/PriceDisplay';
+import type { PriceTone } from '@/components/public/PriceDisplay';
 import type { MenuItem, ThemeProps } from '@/lib/types';
 
 function slugify(value: string): string {
@@ -20,14 +22,15 @@ function VegMark({ isVeg }: { isVeg: boolean }) {
   );
 }
 
-function Price({ value }: { value: number }) {
-  if (!value || value <= 0) return null;
-  return (
-    <span className="text-base font-semibold" style={{ color: 'var(--ms-primary)' }}>
-      ₹{value.toLocaleString('en-IN')}
-    </span>
-  );
-}
+const priceTone: PriceTone = {
+  accent: 'var(--ms-primary)',
+  muted: 'var(--ms-muted)',
+  surface: 'color-mix(in srgb, var(--ms-primary) 8%, transparent)',
+  border: 'color-mix(in srgb, var(--ms-primary) 22%, transparent)',
+  radius: 'rounded-full',
+  priceClassName: 'text-base font-semibold',
+  labelClassName: 'text-[11px] font-medium',
+};
 
 function ItemCard({ item }: { item: MenuItem }) {
   const unavailable = !item.isAvailable;
@@ -63,7 +66,7 @@ function ItemCard({ item }: { item: MenuItem }) {
               <VegMark isVeg={item.isVeg} />
               <h3 className="truncate text-[15px] font-semibold leading-tight">{item.name}</h3>
             </div>
-            <Price value={item.price} />
+            <PriceDisplay base={item.price} variants={item.priceVariants} tone={priceTone} />
           </div>
           {item.description ? (
             <p
@@ -73,6 +76,9 @@ function ItemCard({ item }: { item: MenuItem }) {
               {item.description}
             </p>
           ) : null}
+          {unavailable ? null : (
+            <PriceOptions variants={item.priceVariants} tone={priceTone} className="mt-2" />
+          )}
           {unavailable ? (
             <span
               className="mt-2 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
