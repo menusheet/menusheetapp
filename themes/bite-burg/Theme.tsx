@@ -305,18 +305,10 @@ function VegMark({ isVeg }: { isVeg: boolean }) {
     <span
       role="img"
       aria-label={isVeg ? 'Vegetarian' : 'Non-vegetarian'}
-      className="inline-flex h-[22px] min-w-[80px] shrink-0 items-center justify-center gap-1.5 rounded-full border px-2.5"
-      style={{ borderColor: c, background: isVeg ? 'rgba(31,122,61,.10)' : 'rgba(227,30,36,.10)' }}
+      className="inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[4px] border-[1.5px]"
+      style={{ borderColor: c }}
     >
-      <span
-        className="inline-flex h-[12px] w-[12px] shrink-0 items-center justify-center rounded-[3px] border"
-        style={{ borderColor: c }}
-      >
-        <span className="h-[5px] w-[5px] rounded-full" style={{ background: c }} />
-      </span>
-      <span className="text-[10px] font-bold uppercase tracking-[.06em]" style={{ color: c }}>
-        {isVeg ? 'Veg' : 'Non-veg'}
-      </span>
+      <span className="h-[6px] w-[6px] rounded-full" style={{ background: c }} />
     </span>
   );
 }
@@ -400,9 +392,9 @@ function ItemRow({ item, qty, onAdd, onRemove }: { item: MenuItem; qty: number; 
       </div>
       <div className="flex min-w-0 flex-1 flex-col py-0.5">
         <div className="flex items-start gap-2">
-          <h3 dir="auto" className="min-w-0 flex-1 pr-[92px] text-[16px] font-semibold leading-snug tracking-tight">{item.name}</h3>
+          <h3 dir="auto" className="min-w-0 flex-1 pr-6 text-[16px] font-semibold leading-snug tracking-tight">{item.name}</h3>
         </div>
-        <span className="absolute right-3 top-3"><VegMark isVeg={item.isVeg} /></span>
+        <span className="absolute right-3.5 top-3.5"><VegMark isVeg={item.isVeg} /></span>
         {item.description ? (
           <p dir="auto" className="mt-1 line-clamp-2 text-[13px] leading-snug" style={{ color: 'var(--ms-muted)' }}>{item.description}</p>
         ) : null}
