@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { logoutUser } from '@/lib/auth';
+import { signOut } from '@/lib/auth';
 import { useAuthGuard } from '@/lib/useAuthGuard';
 import {
   IconBell,
@@ -27,12 +27,12 @@ const GENERAL_NAV = [
 ];
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
-  const { status, email } = useAuthGuard();
+  const { status, email, refresh } = useAuthGuard();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    if (status === 'anon' || status === 'denied') {
+    if (status === 'anon') {
       router.replace('/admin/login');
     }
   }, [status, router]);
@@ -56,7 +56,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
         onLogout={async () => {
-          await logoutUser();
+          await signOut();
+          // Nudge other open tabs to re-check their (now missing) session.
+          try {
+            localStorage.setItem('menusheet_logged_out', String(Date.now()));
+          } catch {}
+          await refresh();
           router.replace('/admin/login');
         }}
       />

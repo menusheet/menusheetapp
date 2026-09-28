@@ -1,38 +1,40 @@
 import type { RestaurantRecord } from '@/lib/types';
 
-const BASE = process.env.NEXT_PUBLIC_ADMIN_APPS_SCRIPT_URL || '';
-const SECRET = process.env.NEXT_PUBLIC_SHARED_SECRET || '';
+/**
+ * All privileged calls go through the auth Worker, which holds SHARED_SECRET
+ * and injects it upstream.
+ *
+ * The dashboard previously called the Apps Script directly with
+ * NEXT_PUBLIC_SHARED_SECRET inlined into the client bundle — readable by anyone
+ * who opened devtools, which made the write API callable while logged out.
+ */
+const AUTH_WORKER = (process.env.NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL || '').replace(/\/+$/, '');
 
 export function adminApiConfigured(): boolean {
-  return Boolean(BASE && SECRET);
+  return Boolean(AUTH_WORKER);
 }
 
 function requireConfig() {
   if (!adminApiConfigured()) {
     throw new Error(
-      'Admin API is not configured. Set NEXT_PUBLIC_ADMIN_APPS_SCRIPT_URL and NEXT_PUBLIC_SHARED_SECRET in .env.local and rebuild.'
+      'Admin API is not configured. Set NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL in .env.local and rebuild.'
     );
   }
 }
 
-async function gasGet(action: string): Promise<Record<string, unknown>> {
+async function call(action: string, payload?: Record<string, unknown>): Promise<Record<string, unknown>> {
   requireConfig();
-  const url = `${BASE}?action=${encodeURIComponent(action)}&key=${encodeURIComponent(SECRET)}`;
-  const res = await fetch(url, { redirect: 'follow' });
-  const data = (await res.json()) as Record<string, unknown>;
-  if (data.error) throw new Error(String(data.error));
-  return data;
-}
-
-async function gasPost(action: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
-  requireConfig();
-  const res = await fetch(BASE, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ key: SECRET, action, payload }),
+  const res = await fetch(`${AUTH_WORKER}/api/admin/${encodeURIComponent(action)}`, {
+    method: payload ? 'POST' : 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    headers: payload ? { 'Content-Type': 'application/json' } : undefined,
+    body: payload ? JSON.stringify({ payload }) : undefined,
   });
-  const data = (await res.json()) as Record<string, unknown>;
+
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+
+  if (res.status === 401) throw new Error('Your session expired. Sign in again.');
   if (data.error) throw new Error(String(data.error));
   return data;
 }
@@ -63,7 +65,7 @@ function normalizeRestaurantOut(r: RestaurantRecord | null): RestaurantRecord | 
 }
 
 export async function listRestaurants(): Promise<RestaurantRecord[]> {
-  const data = await gasGet('listRestaurants');
+  const data = await call('listRestaurants');
   const rows = Array.isArray(data.restaurants) ? (data.restaurants as Record<string, unknown>[]) : [];
   return rows.filter((r) => r.restaurant_id).map(normalizeRow);
 }
@@ -71,14 +73,14 @@ export async function listRestaurants(): Promise<RestaurantRecord[]> {
 export async function addRestaurant(
   fields: Partial<RestaurantRecord>
 ): Promise<RestaurantRecord | null> {
-  const data = await gasPost('addRestaurant', fields as Record<string, unknown>);
+  const data = await call('addRestaurant', fields as Record<string, unknown>);
   return normalizeRestaurantOut((data.restaurant as RestaurantRecord) ?? null);
 }
 
 export async function updateRestaurant(
   fields: Partial<RestaurantRecord>
 ): Promise<RestaurantRecord | null> {
-  const data = await gasPost('updateRestaurant', fields as Record<string, unknown>);
+  const data = await call('updateRestaurant', fields as Record<string, unknown>);
   return normalizeRestaurantOut((data.restaurant as RestaurantRecord) ?? null);
 }
 
@@ -92,12 +94,18 @@ export async function pushSettingsToRestaurant(
   if (settings.expiry_date !== undefined) payload.expiry_date = settings.expiry_date;
   if (settings.restaurant_name !== undefined) payload.restaurant_name = settings.restaurant_name;
   if (Object.keys(payload).length === 0) return;
-  const res = await fetch(appscriptUrl, {
+
+  // Each restaurant runs its own Apps Script with the same SHARED_SECRET. The
+  // auth Worker proxies to a fixed Admin URL, so this call still needs the
+  // secret. It goes through the reconciler's authenticated endpoint instead.
+  const res = await fetch(`${AUTH_WORKER}/api/admin/updateSettings`, {
     method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ key: SECRET, action: 'updateSettings', payload }),
+    credentials: 'include',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appscript_url: appscriptUrl, payload }),
   });
-  const data = (await res.json()) as Record<string, unknown>;
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.status === 401) throw new Error('Your session expired. Sign in again.');
   if (data.error) throw new Error(String(data.error));
 }

@@ -1,51 +1,53 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { isAllowedEmail, logoutUser, watchAuth } from '@/lib/auth';
+import { useCallback, useEffect, useState } from 'react';
+import { currentUser, type AdminUser } from '@/lib/auth';
 
-export type AuthStatus = 'loading' | 'anon' | 'denied' | 'ok';
+export type AuthStatus = 'loading' | 'anon' | 'ok';
 
 interface AuthGuardState {
   status: AuthStatus;
   email: string | null;
-  deniedEmail: string | null;
+  refresh: () => Promise<void>;
 }
 
+/**
+ * Resolves the signed-in operator by asking the auth Worker.
+ *
+ * The 'denied' state is gone: the Worker only issues a session for the exact
+ * allow-listed email, so an unauthorized identity cannot reach this point.
+ */
 export function useAuthGuard(): AuthGuardState {
-  const [state, setState] = useState<AuthGuardState>({
-    status: 'loading',
-    email: null,
-    deniedEmail: null,
-  });
+  const [status, setStatus] = useState<AuthStatus>('loading');
+  const [email, setEmail] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    const user: AdminUser | null = await currentUser();
+    setEmail(user?.email ?? null);
+    setStatus(user ? 'ok' : 'anon');
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    let unsub: (() => void) | undefined;
-    try {
-      unsub = watchAuth((user) => {
-        if (cancelled) return;
-        if (!user) {
-          setState({ status: 'anon', email: null, deniedEmail: null });
-          return;
-        }
-        if (!isAllowedEmail(user.email)) {
-          const email = user.email ?? null;
-          setState({ status: 'denied', email, deniedEmail: email });
-          void logoutUser();
-          return;
-        }
-        setState({ status: 'ok', email: user.email ?? null, deniedEmail: null });
-      });
-    } catch {
-      if (!cancelled) {
-        setState({ status: 'anon', email: null, deniedEmail: null });
-      }
-    }
+
+    void (async () => {
+      const user = await currentUser();
+      if (cancelled) return;
+      setEmail(user?.email ?? null);
+      setStatus(user ? 'ok' : 'anon');
+    })();
+
+    // Sign-out in another tab should lock this one too.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'menusheet_logged_out') void refresh();
+    };
+    window.addEventListener('storage', onStorage);
+
     return () => {
       cancelled = true;
-      unsub?.();
+      window.removeEventListener('storage', onStorage);
     };
-  }, []);
+  }, [refresh]);
 
-  return state;
+  return { status, email, refresh };
 }

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmail } from '@/lib/auth';
+import { signIn } from '@/lib/auth';
 import { useAuthGuard } from '@/lib/useAuthGuard';
 import { ErrorBanner, PrimaryButton, Spinner, inputClass } from '@/components/admin/ui';
 
 export default function LoginPage() {
-  const { status, deniedEmail } = useAuthGuard();
+  const { status, refresh } = useAuthGuard();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +23,8 @@ export default function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      await signInWithEmail(email.trim(), password);
+      await signIn(email.trim(), password);
+      await refresh();
       router.replace('/admin');
     } catch (e) {
       setError(friendlyError(e));
@@ -56,16 +57,6 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-3xl bg-white p-6 shadow-card ring-1 ring-gray-100">
-          {status === 'denied' ? (
-            <div className="mb-4">
-              <ErrorBanner
-                message={`This account is not authorized${
-                  deniedEmail ? ` (${deniedEmail})` : ''
-                }. Sign in with an allow-listed admin email.`}
-              />
-            </div>
-          ) : null}
-
           <form onSubmit={handleEmail} className="space-y-3">
             <input
               type="email"
@@ -93,9 +84,8 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs leading-relaxed text-gray-400">
-          Access is restricted to allow-listed operator emails.
-          <br />
-          Unauthorized accounts are signed out automatically.
+          Operator accounts only. Sessions are issued and verified by the
+          MenuSheet auth service.
         </p>
       </div>
     </div>
@@ -104,9 +94,11 @@ export default function LoginPage() {
 
 function friendlyError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
-  if (/Invalid login credentials/i.test(msg)) return 'Incorrect email or password.';
-  if (/Email not confirmed/i.test(msg)) return 'Please verify your email before signing in.';
-  if (/Too many requests/i.test(msg)) return 'Too many attempts — please wait a minute and retry.';
-  if (/Supabase is not configured/i.test(msg)) return msg;
+  if (/Incorrect email or password/i.test(msg)) return 'Incorrect email or password.';
+  if (/Too many attempts/i.test(msg)) return 'Too many attempts — please wait a few minutes and retry.';
+  if (/not configured/i.test(msg)) return msg;
+  if (/Failed to fetch|NetworkError/i.test(msg)) {
+    return 'Could not reach the auth service. Check your connection and try again.';
+  }
   return 'Sign-in failed. Please try again.';
 }

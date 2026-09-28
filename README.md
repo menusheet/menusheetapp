@@ -10,7 +10,7 @@ Next.js export with free unlimited bandwidth.
 
 ```
 Restaurant Sheet ──Apps Script──► /r/{id} page (static export + live client fetch)
-Admin Sheet ──Admin Apps Script──► Admin Dashboard (Supabase Auth + allow-list)
+Admin Sheet ──Admin Apps Script──► Admin Dashboard (Cloudflare auth Worker)
                 ▲                        │
                 └── Cloudflare Worker ───┘   (daily 00:00 IST reconciliation cron)
 ```
@@ -20,8 +20,10 @@ Admin Sheet ──Admin Apps Script──► Admin Dashboard (Supabase Auth + al
   localStorage cache (6 h TTL) so repeat QR scans never hit quota.
 - **Billing state** lives in the Admin Sheet (source of truth). The Worker reconciles
   every restaurant's Settings tab nightly and auto-deactivates expired accounts.
-- **Admin Dashboard** (`/admin`, unlisted + noindex) uses Supabase Authentication with a
-  hard email allow-list. The Supabase SDK is code-split into admin chunks only.
+- **Admin Dashboard** (`/admin`, unlisted + noindex) authenticates through the
+  `admin-auth-worker/` Cloudflare Worker. It holds the operator credentials, signs an
+  HttpOnly session cookie, and proxies every privileged Apps Script call — so
+  `SHARED_SECRET` is never exposed to the browser.
 
 ```
 ├── app/                     # Next.js App Router (output: 'export')
@@ -77,15 +79,17 @@ Production and Preview:
 | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | Canonical origin, e.g. `https://menusheetapp.pages.dev` |
 | `NEXT_PUBLIC_MENU_CACHE_TTL_HOURS` | Optional, defaults to `6` |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable (anon) key |
-| `NEXT_PUBLIC_ADMIN_ALLOWED_EMAILS` | Comma-separated admin allow-list |
-| `NEXT_PUBLIC_ADMIN_APPS_SCRIPT_URL` | Admin Apps Script `/exec` URL |
-| `NEXT_PUBLIC_SHARED_SECRET` | Shared with the Admin Apps Script + Worker |
+| `NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL` | Public URL of the auth Worker |
 
 `.env.local` is gitignored, so it is **only** for local development and local builds —
 it never reaches the Cloudflare build container. `next build` fails loudly if any
 required variable above is missing, rather than shipping a bundle with empty values.
+
+### Secrets that must NOT be build-time vars
+
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SESSION_SECRET` and `SHARED_SECRET` are encrypted
+secrets on the auth Worker. They are set once with `wrangler secret put` and are never
+exposed to the browser. See `admin-auth-worker/`.
 
 ### Local deploy (fallback)
 
