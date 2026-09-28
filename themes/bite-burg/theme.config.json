@@ -1,0 +1,20 @@
+{
+  "name": "Bite Burg",
+  "colors": {
+    "primary": "#E31E24",
+    "accent": "#F4DD00",
+    "bg": "#D9E2DF",
+    "surface": "#EEF3F1",
+    "text": "#292116",
+    "muted": "#68706D"
+  },
+  "fonts": {
+    "heading": "Archivo Black",
+    "body": "Archivo",
+    "headingWeights": "400",
+    "bodyWeights": "400;500;600"
+  },
+  "logoUrl": "",
+  "heroImageUrl": "",
+  "tagline": ""
+}
