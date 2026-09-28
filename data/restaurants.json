@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T15:01:35.526Z",
+  "generatedAt": "2026-09-28T15:53:59.954Z",
   "source": "live",
   "restaurants": [
     {
@@ -34,8 +34,8 @@
       "restaurant_id": "bite-burg",
       "restaurant_name": "BiteBurg",
       "owner_contact": "97471834040",
-      "appscript_url": "https://script.google.com/macros/s/AKfycbwShc3G1CbydoJQu1wqV6hCynwRlPVQbjzdwpORo7zafZDbJ3_2ONYjxwenADDUzCv7/exec",
-      "sheet_id": "1u5c2BfvRLaFwlH0pBgb3ec6DK7H8cuGTxiDNFJOCeGs",
+      "appscript_url": "https://script.google.com/macros/s/AKfycbx01xmxa5HwRInbQWM1rKhMpa9N2UEZICmYY17HgoXJ89oZEksJfN8sKgLe0V10rd6l/exec",
+      "sheet_id": "1s3X_CTv533OuK0NxrX128udGa6IPhCqs7LuUJNadpGo",
       "theme_key": "bite-burg",
       "active": "TRUE",
       "expiry_date": "2026-10-28",

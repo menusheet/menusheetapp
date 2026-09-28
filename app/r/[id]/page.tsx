@@ -116,6 +116,19 @@ export default async function RestaurantMenuPage({ params }: { params: Promise<{
   );
 }
 
+function buildOffers(m: MenuItem): object | object[] {
+  const priceVariants = m.priceVariants ?? [];
+  if (priceVariants.length) {
+    return priceVariants.map((v) => ({
+      '@type': 'Offer',
+      price: v.price,
+      priceCurrency: 'INR',
+      ...(v.label ? { description: `${m.name} — ${v.label}` } : {}),
+    }));
+  }
+  return { '@type': 'Offer', price: m.price, priceCurrency: 'INR' };
+}
+
 function buildJsonLd(
   id: string,
   sheetName: string,
@@ -138,7 +151,7 @@ function buildJsonLd(
         '@type': 'MenuItem',
         name: m.name,
         description: m.description || undefined,
-        offers: { '@type': 'Offer', price: m.price, priceCurrency: 'INR' },
+        offers: buildOffers(m),
         suitableForDiet: m.isVeg ? 'https://schema.org/VegetarianDiet' : undefined,
       })),
   }));

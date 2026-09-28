@@ -47,6 +47,11 @@ work) plus operational runbooks for deploys, renewals and secret rotation.
   `docs/sheet-templates/restaurant-menu.csv` and `restaurant-settings.csv` as headers.
 - Owner fills in dishes (name, price, description, image link, veg flag, availability,
   sort order) and Settings (`menu_active=TRUE`, `expiry_date`, `restaurant_name`).
+- **Price variations live in the price column** — no extra columns, no extra tabs.
+  A dish with sizes is written as comma-separated `Label-Amount` pairs:
+  `Small-220, Medium-320, Large-420`. A single number (`320`) still works and is
+  what most dishes should have. The lowest amount is shown as the price and the
+  options expand on the menu page.
 
 ### 2. Deploy their Apps Script (owner, ~3 min)
 
