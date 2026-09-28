@@ -20,8 +20,13 @@ work) plus operational runbooks for deploys, renewals and secret rotation.
    - `wrangler secret put SHARED_SECRET`
    - `wrangler deploy`
 5. **Frontend env** — fill `.env.local` from `.env.example` (site URL, Supabase keys,
-   allow-list, both Apps Script URL/secret pairs).
-6. **Cloudflare Pages** — ensure you are logged into wrangler (`wrangler login`), then deploy once: `npm run deploy`.
+   allow-list, both Apps Script URL/secret pairs). This is for **local dev only**.
+6. **Cloudflare Pages** — connect this repo (Build command `npm run build`, output
+   directory `out`, framework preset `None`), then add every `NEXT_PUBLIC_*` var as
+   **Plaintext** under *Settings → Environment variables* for **both** Production and
+   Preview. The site is a static export, so these are inlined at build time; the
+   gitignored `.env.local` is never visible to the Cloudflare builder. See the
+   **Deploy** section of the README for the full table.
 
 ---
 
@@ -58,8 +63,11 @@ work) plus operational runbooks for deploys, renewals and secret rotation.
 ### 5. Rebuild, redeploy, activate
 
 ```
-npm run deploy
+git push
 ```
+
+Cloudflare Pages rebuilds from the commit. If you deploy locally instead, run
+`npm run deploy`.
 
 - Verify `https://<your-domain>/r/{restaurant_id}` renders.
 - Toggle **Active** ON in the dashboard.

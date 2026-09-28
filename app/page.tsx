@@ -355,10 +355,10 @@ export default function LandingPage() {
                   💬 Chat on WhatsApp
                 </a>
                 <a
-                  href="mailto:hello@menusheet.app?subject=I%20want%20a%20QR%20menu"
+                  href="mailto:menusheet@gmail.com?subject=I%20want%20a%20QR%20menu"
                   className="rounded-full border border-forest-400/50 px-7 py-3.5 text-base font-semibold text-white transition hover:bg-forest-800"
                 >
-                  hello@menusheet.app
+                  menusheet@gmail.com
                 </a>
               </div>
             </div>

@@ -13,16 +13,4 @@ ADMIN_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnc3D0CP-LRQKF
 
 [observability]
 enabled = false
-head_sampling_rate = 1
-redact_query_string = false
 
-[observability.logs]
-enabled = true
-head_sampling_rate = 1
-persist = true
-invocation_logs = true
-
-[observability.traces]
-enabled = false
-persist = true
-head_sampling_rate = 1
