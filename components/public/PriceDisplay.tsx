@@ -31,6 +31,8 @@ export interface PriceTone {
   labelClassName?: string;
   /** Force option labels uppercase (theme-typical for menu cards). */
   uppercase?: boolean;
+  /** Currency prefix for this theme. Defaults to the shared `CURRENCY_SYMBOL`. */
+  currency?: string;
 }
 
 interface DisplayProps {
@@ -44,6 +46,7 @@ interface DisplayProps {
 
 export function PriceDisplay({ base, variants, tone, className, style }: DisplayProps) {
   const { min, max } = priceRange(base, variants);
+  const symbol = tone.currency ?? CURRENCY_SYMBOL;
   if (min <= 0 && max <= 0) return null;
 
   if (min === max) {
@@ -52,7 +55,7 @@ export function PriceDisplay({ base, variants, tone, className, style }: Display
         className={`${tone.priceClassName} ${className ?? ''}`}
         style={{ color: tone.accent, ...style }}
       >
-        {CURRENCY_SYMBOL}
+        {symbol}
         {formatAmount(min)}
       </span>
     );
@@ -63,10 +66,10 @@ export function PriceDisplay({ base, variants, tone, className, style }: Display
       className={`${tone.rangeClassName ?? tone.priceClassName} ${className ?? ''}`}
       style={{ color: tone.accent, ...style }}
     >
-      {CURRENCY_SYMBOL}
+      {symbol}
       {formatAmount(min)}
       <span className="px-[0.15em] opacity-55">&ndash;</span>
-      {CURRENCY_SYMBOL}
+      {symbol}
       {formatAmount(max)}
     </span>
   );
@@ -81,6 +84,7 @@ interface OptionsProps {
 export function PriceOptions({ variants, tone, className }: OptionsProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const symbol = tone.currency ?? CURRENCY_SYMBOL;
 
   if (!isOptionList(variants)) return null;
   const list = variants as PriceVariant[];
@@ -140,7 +144,7 @@ export function PriceOptions({ variants, tone, className }: OptionsProps) {
                 className={`shrink-0 tabular-nums ${tone.priceClassName}`}
                 style={{ color: tone.accent }}
               >
-                {CURRENCY_SYMBOL}
+                {symbol}
                 {formatAmount(variant.price)}
               </span>
             </li>
