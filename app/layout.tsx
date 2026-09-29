@@ -10,7 +10,17 @@ export const metadata: Metadata = {
   },
   description:
     'MenuSheet gives every restaurant a beautiful QR-code digital menu. No app, no backend, no hassle — just ₹100/month.',
-  icons: { icon: '/icon.svg' },
+  icons: {
+    icon: [{ url: '/icons/logo.png', type: 'image/png', sizes: '512x512' }],
+    apple: [{ url: '/icons/logo.png', type: 'image/png', sizes: '512x512' }],
+  },
+  openGraph: {
+    images: [{ url: '/icons/logo.png', width: 512, height: 512, alt: 'MenuSheet' }],
+  },
+  twitter: {
+    card: 'summary',
+    images: ['/icons/logo.png'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
