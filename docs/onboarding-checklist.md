@@ -69,13 +69,23 @@ work) plus operational runbooks for deploys, renewals and secret rotation.
 - Sheet → Extensions → Apps Script → paste `apps-script/restaurant-template.gs` and set the
   four constants at the top: `RESTAURANT_ID` (the id from the portal), `RESTAURANT_NAME`
   (optional), `API_URL`, `SHARED_SECRET`.
+- **Project Settings → tick "Show appsscript.json manifest file in editor"** and paste
+  `apps-script/appsscript.json` over it. Not optional: without it the *Reload menu on
+  website* button throws
+  `You do not have permission to call UrlFetchApp.fetch ... script.external_request`,
+  because the scope consent prompt cannot be answered from a menu click. The manifest
+  declares the only three scopes the script uses — `spreadsheets.currentonly`,
+  `script.container.ui`, `script.external_request`.
 - Run `initSheet()` once from the editor. It creates the single **Menu** tab with headers
-  and sample rows, and deletes a leftover Settings tab from an older deployment.
+  and sample rows, and deletes a leftover Settings tab from an older deployment. Approve
+  the permission prompt when it appears.
 - Deploy → New deployment → **Web app** → *Execute as: Me*, *Who has access: Anyone*.
 - Authorize, then copy the `/exec` URL.
 - The script adds a **MenuSheet** menu to their sheet with one item,
   *Reload menu on website*. That button is how they publish their own edits without
   calling you — it writes nothing to the sheet, it just asks the platform to re-read it.
+- If the script or its manifest is ever changed, **Deploy → Manage deployments → edit →
+  New version**. A saved code change does not reach the live `/exec` URL on its own.
 
 ### 3. Register them in the dashboard (operator, ~2 min)
 
@@ -166,6 +176,7 @@ server-side. If the secret is ever compromised, or you are rotating it proactive
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | "This restaurant has no Apps Script URL saved" | Never pasted their `/exec` URL | Add it on the detail page, then Reload |
+| Owner's Reload button says "Could not reach MenuSheet: You do not have permission to call UrlFetchApp.fetch" | The script was deployed without an `appsscript.json` declaring `script.external_request` | Project Settings → show the manifest → paste `apps-script/appsscript.json` → run `initSheet()` and approve → new deployment version |
 | Reload returns an authentication error | The sheet still has the old `SHARED_SECRET` after a rotation | Update that script per the rotation runbook |
 | Reload returns "not a Google Apps Script /exec URL" | A Sheets *sharing* URL was pasted instead | Use the `/exec` URL from Deploy → New deployment |
 | Reload returns "deployment is not public" | Web App *Who has access* is not Anyone | Redeploy as a Web App with access Anyone |

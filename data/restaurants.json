@@ -16,21 +16,6 @@
       "cache_ttl_seconds": 0
     },
     {
-      "restaurant_id": "test",
-      "restaurant_name": "test",
-      "owner_contact": "9207624728",
-      "appscript_url": "https://script.google.com/macros/s/AKfycbwbDHIQcHW7QAXAVMCEcHc8PCtrb_IdHNpktRX_GeiO2u2O3yAb6hYEAEexm-ZpQbEznQ/exec",
-      "sheet_id": "12Ej5Vcod72geZ3RGCO0jPf_8XlfP37XKfhyZeoAxuQA",
-      "theme_key": "demo",
-      "active": false,
-      "expiry_date": "2026-09-23",
-      "plan_amount": 100,
-      "onboarded_at": "2026-08-25",
-      "last_checked_at": "2026-09-28T18:30:27.998Z",
-      "notes": "nothing",
-      "cache_ttl_seconds": 0
-    },
-    {
       "restaurant_id": "thottara-kitchen",
       "restaurant_name": "Thottara Kitchen",
       "owner_contact": "9207624728",
