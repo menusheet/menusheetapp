@@ -642,7 +642,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
     (mode === 'pickup' || form.address.trim().length > 5);
 
   const sendWhatsApp = () => {
-    const rule = '━━━━━━━━━━━━━━';
+    const rule = '-----------------';
     const now = new Date();
     const placed = now.toLocaleString('en-IN', {
       day: '2-digit',
@@ -653,35 +653,43 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
       hour12: true,
     });
     const isDelivery = mode === 'delivery';
-    const rows = lines.flatMap((l, i) => [
-      `${i + 1}. ${l.isVeg === false ? '[N] ' : '[V] '}${l.name}${l.variant ? ` (${l.variant})` : ''}`,
-      `    ${l.qty} x ${money(l.price)} = ${money(l.qty * l.price)}`,
-    ]);
+    const rows = lines.map((l, i) =>
+      [
+        `${i + 1}. *${l.name}*${l.variant ? ` (${l.variant})` : ''}`,
+        `    ${l.qty} × ${money(l.price)} = ${money(l.qty * l.price)}`,
+      ].join('\n')
+    );
     const text = [
-      `*${restaurant.name.toUpperCase()}*`,
-      '*ORDER RECEIPT*',
+      `*NEW ORDER RECEIVED*`,
+      restaurant.name,
       rule,
-      `*Order ID:* #${orderRef()}`,
-      `*Placed:* ${placed}`,
-      `*Order type:* ${isDelivery ? 'Delivery' : 'Pickup'}`,
+
+      `Order ID: #${orderRef()}`,
+      `Date: ${placed}`,
+      `Order Type: ${isDelivery ? 'Home Delivery' : 'Pickup'}`,
       rule,
-      isDelivery ? '*DELIVERY DETAILS*' : '*PICKUP DETAILS*',
-      `*Name:* ${form.name.trim()}`,
-      `*Phone:* ${form.phone.trim()}`,
-      isDelivery ? `*Address:* ${form.address.trim()}` : '',
+
+      '*CUSTOMER DETAILS*',
+      `Name: ${form.name.trim()}`,
+      `Phone: ${form.phone.trim()}`,
+      isDelivery && form.address.trim() && `Address: ${form.address.trim()}`,
       rule,
-      '*ITEMS*',
-      ...rows,
-      rule,
-      `Total items : ${count}`,
-      `*TOTAL: ${money(total)}*`,
-      `*Payment:* ${isDelivery ? 'Pay on delivery' : 'Pay at counter'}`,
-      form.note.trim() ? `\n*Note:* ${form.note.trim()}` : '',
+
+      '*ORDER SUMMARY*',
       '',
+      rows.join('\n\n'),
       rule,
-      'Sent via MenuSheet',
+
+      `Total Items: ${count}`,
+      `*GRAND TOTAL: ${money(total)}*`,
+      `Payment: ${isDelivery ? 'Pay on delivery' : 'Pay at counter'}`,
+
+      form.note.trim() && `${rule}\n*NOTE*\n${form.note.trim()}`,
+
+      rule,
+      'Send via MenuSheet',
     ]
-      .filter(Boolean)
+      .filter((l) => l !== false && l != null)
       .join('\n');
     const owner = waNumber(CONTACT.orderTo || CONTACT.whatsapp || CONTACT.phone);
     const url = owner
