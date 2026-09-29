@@ -96,41 +96,71 @@ export default function MenuPageClient({
 
   const fetchLive = useCallback(async (): Promise<MenuPayload | null> => {
     if (!appscriptUrl) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000);
       const sep = appscriptUrl.includes('?') ? '&' : '?';
       const res = await fetch(`${appscriptUrl}${sep}action=getMenu`, {
         signal: controller.signal,
         redirect: 'follow',
       });
-      clearTimeout(timer);
       if (!res.ok) return null;
-      return normalizePayload(await res.json());
+      const data = await res.json().catch(() => null);
+      if (!data) return null;
+      return normalizePayload(data);
     } catch {
       return null;
+    } finally {
+      clearTimeout(timer);
     }
   }, [appscriptUrl]);
 
+  /* Apps Script cold starts are flaky — retry with a short backoff so a single
+     slow/failed warm-up request doesn't strand the page on the loading screen. */
+  const fetchLiveWithRetry = useCallback(async (): Promise<MenuPayload | null> => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const live = await fetchLive();
+      if (live) return live;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    }
+    return null;
+  }, [fetchLive]);
+
   useEffect(() => {
     const cached = readCache(restaurantId);
+    let cancelled = false;
+
+    if (cached?.fresh) {
+      setPayload(cached.payload);
+      setUpdatedAt(cached.timestamp);
+      return undefined;
+    }
+
+    /* Stale cache: show it immediately so the page never sits on the spinner,
+       then swap in fresh data when the network round-trip finishes. */
     if (cached) {
       setPayload(cached.payload);
       setUpdatedAt(cached.timestamp);
-      if (cached.fresh) return;
     }
-    let cancelled = false;
+
     (async () => {
-      const live = await fetchLive();
-      if (cancelled || !live) return;
-      setPayload(live);
-      setUpdatedAt(Date.now());
-      writeCache(restaurantId, live);
+      const live = await fetchLiveWithRetry();
+      if (cancelled) return;
+      if (live) {
+        setPayload(live);
+        setUpdatedAt(Date.now());
+        writeCache(restaurantId, live);
+      } else if (!cached) {
+        /* Nothing cached and every attempt failed — fall back to the server's
+           snapshot so the loading screen can't spin forever. The Refresh pill
+           stays available to retry the live fetch. */
+        setPayload(initialPayload);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [restaurantId, fetchLive]);
+  }, [restaurantId, fetchLiveWithRetry, initialPayload]);
 
   const onRefresh = useCallback(async () => {
     if (!appscriptUrl || refreshing) return;
