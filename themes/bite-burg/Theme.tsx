@@ -642,7 +642,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
     (mode === 'pickup' || form.address.trim().length > 5);
 
   const sendWhatsApp = () => {
-    const rule = '-----------------';
+    const rule = '━━━━━━━━━━━━━━';
     const now = new Date();
     const placed = now.toLocaleString('en-IN', {
       day: '2-digit',
@@ -668,18 +668,20 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
       `Date: ${placed}`,
       `Order Type: ${isDelivery ? 'Home Delivery' : 'Pickup'}`,
       rule,
-
+      '',
       '*CUSTOMER DETAILS*',
       `Name: ${form.name.trim()}`,
       `Phone: ${form.phone.trim()}`,
       isDelivery && form.address.trim() && `Address: ${form.address.trim()}`,
       rule,
-
+      '',
       '*ORDER SUMMARY*',
       '',
       rows.join('\n\n'),
+      '',
       rule,
-
+      rule,
+      '',
       `Total Items: ${count}`,
       `*GRAND TOTAL: ${money(total)}*`,
       `Payment: ${isDelivery ? 'Pay on delivery' : 'Pay at counter'}`,
@@ -687,6 +689,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
       form.note.trim() && `${rule}\n*NOTE*\n${form.note.trim()}`,
 
       rule,
+      '',
       'Send via MenuSheet',
     ]
       .filter((l) => l !== false && l != null)
