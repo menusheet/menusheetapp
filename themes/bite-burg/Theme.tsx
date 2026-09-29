@@ -38,6 +38,7 @@ const priceTone: PriceTone = {
   rangeClassName: 'whitespace-nowrap text-[13px] font-semibold',
   labelClassName: 'text-[11px] font-medium',
   uppercase: false,
+  currency: 'Qr.',
 };
 
 /* ───────────── image cache ─────────────
@@ -540,7 +541,7 @@ function Skeleton() {
 
 /* ───────────── main ───────────── */
 export default function Theme({ restaurant, menu, status }: ThemeProps) {
-  const currency: string = (restaurant as any).currency || '₹';
+  const currency: string = (restaurant as any).currency || 'Qr.';
   const money = useCallback(
     (n: number) => `${currency}${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`,
     [currency]
