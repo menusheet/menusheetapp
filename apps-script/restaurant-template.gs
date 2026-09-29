@@ -152,10 +152,10 @@ function initSheet() {
 
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('MenuSheet')
-    .addItem('Reload menu on website', 'reloadMenuOnWebsite')
+    .createMenu('SaveChanges')
+    .addItem('Reload menu', 'reloadMenuOnWebsite')
     .addSeparator()
-    .addItem('How do I set this up?', 'showSetupHelp')
+    .addItem('Help?', 'showSetupHelp')
     .addToUi();
 }
 
