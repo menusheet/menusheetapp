@@ -475,23 +475,26 @@ function PoweredBy() {
 function StatusScreen({ restaurant, title, subtitle }: { restaurant: ThemeProps['restaurant']; title: string; subtitle: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center" style={{ ...cssVars, ...body, background: 'var(--ms-background)', color: 'var(--ms-text)' }}>
-      {restaurant.logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={restaurant.logoUrl} alt={`${restaurant.name} logo`} className="mb-6 h-14 w-auto object-contain" />
-      ) : (
-        <span className="mb-6 text-xl" style={heading}>{restaurant.name || 'Menu'}</span>
-      )}
-      <h1 dir="auto" className="text-[28px] font-bold tracking-tight">{title}</h1>
+      <div className="mb-5 shrink-0 rounded-[19px] bg-white p-1" style={{ boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}>
+        <Logo url={restaurant.logoUrl} size={56} />
+      </div>
+      <p dir="auto" className="text-[15px] font-semibold" style={{ color: 'var(--ms-text)' }}>{restaurant.name || 'Menu'}</p>
+      <h1 dir="auto" className="mt-1 text-[28px] font-bold tracking-tight">{title}</h1>
       <p dir="auto" className="mt-2 max-w-xs text-[15px]" style={{ color: 'var(--ms-muted)' }}>{subtitle}</p>
       <PoweredBy />
     </div>
   );
 }
 
-function Skeleton() {
+function Skeleton({ restaurant }: { restaurant: ThemeProps['restaurant'] }) {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-16">
-      <div className="h-12 w-56 animate-pulse rounded-xl" style={{ background: '#E4E4E8' }} />
+      <div className="flex items-center gap-3">
+        <div className="shrink-0 rounded-[19px] bg-white p-1" style={{ boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}>
+          <Logo url={restaurant.logoUrl} size={48} />
+        </div>
+        <div className="h-5 w-32 animate-pulse rounded-lg" style={{ background: '#E4E4E8' }} />
+      </div>
       <div className="mt-8 space-y-3">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex animate-pulse gap-4 rounded-[22px] p-3" style={{ background: '#fff' }}>
@@ -729,7 +732,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
   };
 
   const shell = { ...cssVars, ...body, background: 'var(--ms-background)', color: 'var(--ms-text)' } as React.CSSProperties;
-  if (status === 'loading') return <div className="min-h-screen" style={shell}><Skeleton /></div>;
+  if (status === 'loading') return <div className="min-h-screen" style={shell}><Skeleton restaurant={restaurant} /></div>;
   if (status === 'inactive')
     return <StatusScreen restaurant={restaurant} title="Menu temporarily unavailable" subtitle="The kitchen is getting ready. Please check back soon." />;
   if (status === 'expired')
