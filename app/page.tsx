@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Wordmark } from '@/components/brand/Logo';
 import { siteUrl } from '@/lib/siteUrl';
 
 export const metadata: Metadata = {
@@ -15,11 +16,11 @@ export const metadata: Metadata = {
     description:
       'A digital QR menu your customers will love, powered by your own Google Sheet. ₹100/month, live updates, zero apps to install.',
     images: [
-      'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=70',
+      { url: '/icons/logo.png', width: 512, height: 512, alt: 'MenuSheet' },
     ],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'MenuSheet — QR Code Digital Menu for ₹100/month',
     description:
       'A digital QR menu your customers will love, powered by your own Google Sheet. ₹100/month, live updates, zero apps.',
@@ -117,11 +118,10 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/85 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <LogoMark />
-            <span className="text-lg font-extrabold tracking-tight">MenuSheet</span>
+      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+          <Link href="/" className="shrink-0">
+            <Wordmark className="h-7 sm:h-8" priority />
           </Link>
           <nav className="hidden items-center gap-8 text-sm font-medium text-gray-600 md:flex">
             <a href="#how" className="hover:text-gray-900">How it works</a>
@@ -131,18 +131,29 @@ export default function LandingPage() {
           </nav>
           <a
             href="#contact"
-            className="rounded-full bg-forest-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-forest-900"
+            className="shrink-0 rounded-full bg-forest-800 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-forest-900 sm:px-5 sm:py-2.5 sm:text-sm"
           >
             Get your QR menu
           </a>
         </div>
+        <nav
+          className="flex gap-5 overflow-x-auto border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-6 md:hidden"
+          aria-label="Sections"
+        >
+          <a href="#how" className="whitespace-nowrap">How it works</a>
+          <a href="#pricing" className="whitespace-nowrap">Pricing</a>
+          <a href="#example" className="whitespace-nowrap">Live example</a>
+          <a href="#faq" className="whitespace-nowrap">FAQ</a>
+        </nav>
       </header>
 
       <main>
         {/* Hero */}
         <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-forest-50 blur-3xl" />
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
+          {/* Decorative only. `relative` on the grid below keeps this blur behind the
+              content — absolutely positioned children otherwise paint over it. */}
+          <div aria-hidden="true" className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-forest-50 blur-3xl" />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2 lg:py-24">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-forest-50 px-3 py-1 text-xs font-semibold text-forest-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-forest-600" />
@@ -185,7 +196,7 @@ export default function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="border-y border-gray-100 bg-[#FAFAF9] py-20">
+        <section id="how" className="scroll-mt-28 border-y border-gray-100 bg-[#FAFAF9] py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="How it works"
@@ -213,7 +224,7 @@ export default function LandingPage() {
         </section>
 
         {/* Sample preview */}
-        <section id="example" className="py-20">
+        <section id="example" className="scroll-mt-28 py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="Live example"
@@ -265,7 +276,7 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="border-y border-gray-100 bg-[#FAFAF9] py-20">
+        <section id="pricing" className="scroll-mt-28 border-y border-gray-100 bg-[#FAFAF9] py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="Pricing"
@@ -306,7 +317,7 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" className="py-20">
+        <section id="faq" className="scroll-mt-28 py-14 sm:py-20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="FAQ"
@@ -333,7 +344,7 @@ export default function LandingPage() {
         </section>
 
         {/* Contact CTA */}
-        <section id="contact" className="pb-20">
+        <section id="contact" className="scroll-mt-28 pb-16 sm:pb-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="relative overflow-hidden rounded-[2rem] bg-forest-900 px-8 py-14 text-center sm:px-14">
               <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-forest-700/40 blur-3xl" />
@@ -368,10 +379,9 @@ export default function LandingPage() {
 
       <footer className="border-t border-gray-100 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 sm:flex-row sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <LogoMark />
-            <span className="font-extrabold tracking-tight">MenuSheet</span>
-          </div>
+          <Link href="/" className="shrink-0">
+            <Wordmark className="h-8 sm:h-9" />
+          </Link>
           <p className="text-sm text-gray-500">
             © {new Date().getFullYear()} MenuSheet · Digital menus made simple
           </p>
@@ -386,22 +396,10 @@ export default function LandingPage() {
   );
 }
 
-function LogoMark() {
-  return (
-    <span className="grid h-9 w-9 place-items-center rounded-xl bg-forest-800 text-white shadow-sm">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-        <path d="M7 3v7a2.5 2.5 0 0 0 5 0V3" />
-        <path d="M9.5 12.5V21" />
-        <path d="M17 3c-1.7 1.5-2.5 4.5-2.5 7 0 .8.7 1.5 1.5 1.5h1v9.5" />
-      </svg>
-    </span>
-  );
-}
-
 function Check({ children }: { children: React.ReactNode }) {
   return (
     <span className="flex items-center gap-2">
-      <svg className="h-4.5 w-4.5 shrink-0 text-forest-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg className="h-[18px] w-[18px] shrink-0 text-forest-600" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 6L9 17l-5-5" />
       </svg>
       {children}

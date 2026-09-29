@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from '@/lib/auth';
 import { useAuthGuard } from '@/lib/useAuthGuard';
+import { Wordmark } from '@/components/brand/Logo';
 import {
   IconBell,
   IconGrid,
@@ -104,15 +105,8 @@ function Sidebar({
         }`}
       >
         <div className="flex items-center justify-between px-5 pb-6 pt-6">
-          <Link href="/admin" className="flex items-center gap-2.5" onClick={onClose}>
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-forest-800 text-white shadow-sm">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <path d="M7 3v7a2.5 2.5 0 0 0 5 0V3" />
-                <path d="M9.5 12.5V21" />
-                <path d="M17 3c-1.7 1.5-2.5 4.5-2.5 7 0 .8.7 1.5 1.5 1.5h1v9.5" />
-              </svg>
-            </span>
-            <span className="text-base font-extrabold tracking-tight text-gray-900">MenuSheet</span>
+          <Link href="/admin" className="min-w-0" onClick={onClose}>
+            <Wordmark className="h-8" />
           </Link>
           <button
             onClick={onClose}
