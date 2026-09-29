@@ -456,8 +456,18 @@ function ItemRow({ item, qty, onAdd, onRemove }: { item: MenuItem; qty: number; 
 /* ───────────── status / skeleton ───────────── */
 function PoweredBy() {
   return (
-    <footer className="pb-32 pt-10 text-center text-[12px]" style={{ color: 'var(--ms-muted)' }}>
-      Powered by <a href="/" className="font-semibold" style={{ color: 'var(--ms-text)' }}>MenuSheet</a>
+    <footer className="pb-32 pt-10 text-center">
+      <p className="text-[12px]" style={{ color: 'var(--ms-muted)' }}>Powered by</p>
+      <a href="/" className="mt-1.5 inline-block" aria-label="MenuSheet">
+        <img
+          src="/icons/logo2.png"
+          alt="MenuSheet"
+          width={811}
+          height={223}
+          className="mx-auto block w-auto opacity-80 transition hover:opacity-100"
+          style={{ height: '34px' }}
+        />
+      </a>
     </footer>
   );
 }
