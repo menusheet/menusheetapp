@@ -347,11 +347,28 @@ function Stepper({ qty, onMinus, onPlus, small }: { qty: number; onMinus: () => 
       className="inline-flex items-center justify-between rounded-full"
       style={{ height: h, minWidth: small ? 92 : 104, background: '#F0F0F3' }}
     >
-      <button type="button" aria-label="Remove one" onClick={onMinus} className="flex h-full w-9 items-center justify-center text-lg font-semibold active:scale-90">
+      <button
+        type="button"
+        aria-label="Remove one"
+        onClick={(e) => {
+          e.stopPropagation();
+          onMinus();
+        }}
+        className="flex h-full w-9 items-center justify-center text-lg font-semibold active:scale-90"
+      >
         −
       </button>
       <span className="text-[14px] font-semibold tabular-nums">{qty}</span>
-      <button type="button" aria-label="Add one" onClick={onPlus} className="flex h-full w-9 items-center justify-center text-lg font-semibold active:scale-90" style={{ color: 'var(--ms-primary)' }}>
+      <button
+        type="button"
+        aria-label="Add one"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPlus();
+        }}
+        className="flex h-full w-9 items-center justify-center text-lg font-semibold active:scale-90"
+        style={{ color: 'var(--ms-primary)' }}
+      >
         +
       </button>
     </div>
@@ -414,13 +431,23 @@ function PrimaryButton({ children, onClick, disabled }: { children: React.ReactN
 }
 
 /* ───────────── item row ───────────── */
-function ItemRow({ item, qty, onAdd, onRemove }: { item: MenuItem; qty: number; onAdd: () => void; onRemove: () => void }) {
+function ItemRow({ item, qty, onAdd, onRemove, onOpen }: { item: MenuItem; qty: number; onAdd: () => void; onRemove: () => void; onOpen: () => void }) {
   const unavailable = !item.isAvailable;
   const hasVariants = getVariants(item).length > 0;
   return (
     <li
-      className={`relative flex gap-3.5 rounded-[24px] p-3 ${unavailable ? 'opacity-50' : ''}`}
-      style={{ background: 'var(--ms-surface)', boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 6px 16px -10px rgba(0,0,0,.12)' }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${item.name}. Open details`}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={`relative flex gap-3.5 rounded-[24px] p-3 outline-none transition active:scale-[.985] focus-visible:ring-2 ${unavailable ? 'opacity-50' : 'cursor-pointer'}`}
+      style={{ background: 'var(--ms-surface)', boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 6px 16px -10px rgba(0,0,0,.12)', ['--tw-ring-color' as string]: 'var(--ms-primary)' }}
     >
       <div className="shrink-0">
         <Thumb url={item.imageUrl} alt={item.name} size={104} />
@@ -446,7 +473,10 @@ function ItemRow({ item, qty, onAdd, onRemove }: { item: MenuItem; qty: number; 
           ) : (
             <button
               type="button"
-              onClick={onAdd}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd();
+              }}
               aria-label={hasVariants ? `Choose option for ${item.name}` : `Add ${item.name}`}
               className="relative flex h-8 min-w-[76px] shrink-0 items-center justify-center rounded-full px-4 text-[13px] font-bold active:scale-95"
               style={{ background: '#F0F0F3', color: 'var(--ms-primary)' }}
@@ -620,8 +650,10 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
   /* sheets */
   const [sheet, setSheet] = useState<'cart' | 'checkout' | null>(null);
   const [picking, setPicking] = useState<MenuItem | null>(null);
+  const [detail, setDetail] = useState<MenuItem | null>(null);
   const closeSheet = useCallback(() => setSheet(null), []);
   const closePicker = useCallback(() => setPicking(null), []);
+  const closeDetail = useCallback(() => setDetail(null), []);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const closeDetails = useCallback(() => setDetailsOpen(false), []);
 
@@ -916,7 +948,14 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
                 </h2>
                 <ul className="grid grid-cols-1 gap-2.5">
                   {items.map((item) => (
-                    <ItemRow key={item.id} item={item} qty={qtyOf(String(item.id))} onAdd={() => onAdd(item)} onRemove={() => onRemove(item)} />
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      qty={qtyOf(String(item.id))}
+                      onAdd={() => onAdd(item)}
+                      onRemove={() => onRemove(item)}
+                      onOpen={() => setDetail(item)}
+                    />
                   ))}
                 </ul>
               </section>
@@ -944,6 +983,64 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
       {/* details */}
       <Sheet open={detailsOpen} onClose={closeDetails} title="Details">
         <Details r={restaurant} />
+      </Sheet>
+
+      {/* item detail */}
+      <Sheet
+        open={!!detail}
+        onClose={closeDetail}
+        title={detail?.name || ''}
+        footer={
+          detail ? (
+            detail.isAvailable ? (
+              getVariants(detail).length > 0 || qtyOf(String(detail.id)) === 0 ? (
+                <PrimaryButton
+                  onClick={() => {
+                    const item = detail;
+                    closeDetail();
+                    if (getVariants(item).length > 0) setPicking(item);
+                    else change(item, null, 1);
+                  }}
+                >
+                  {getVariants(detail).length > 0 ? 'Choose option' : 'Add to cart'}
+                </PrimaryButton>
+              ) : (
+                <div className="flex items-center justify-between px-1">
+                  <Stepper qty={qtyOf(String(detail.id))} onMinus={() => change(detail, null, -1)} onPlus={() => change(detail, null, 1)} />
+                  <span className="text-[16px] font-semibold tabular-nums">{money(qtyOf(String(detail.id)) * detail.price)}</span>
+                </div>
+              )
+            ) : (
+              <div className="flex h-[52px] items-center justify-center rounded-full text-[15px] font-semibold" style={{ background: '#E4E4E8', color: 'var(--ms-muted)' }}>
+                Sold out
+              </div>
+            )
+          ) : undefined
+        }
+      >
+        {detail ? (
+          <div className="space-y-4 pb-2">
+            <div className="flex justify-center">
+              <Thumb url={detail.imageUrl} alt={detail.name} size={180} />
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <VegMark isVeg={detail.isVeg} />
+              <span className="text-[13px] font-medium" style={{ color: 'var(--ms-muted)' }}>
+                {detail.isVeg ? 'Vegetarian' : 'Non-vegetarian'}
+              </span>
+            </div>
+            {detail.description ? (
+              <p dir="auto" className="text-center text-[15px] leading-relaxed" style={{ color: 'var(--ms-muted)' }}>
+                {detail.description}
+              </p>
+            ) : null}
+            <div className="text-center">
+              {detail.isAvailable ? (
+                <PriceDisplay base={detail.price} variants={detail.priceVariants} tone={priceTone} />
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </Sheet>
 
       {/* variant picker */}
