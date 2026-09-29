@@ -29,7 +29,8 @@ export function menuEndpoint(restaurantId: string): string {
 export async function fetchMenuPayload(
   restaurantId: string,
   normalize: (data: Record<string, unknown>) => MenuPayload | null,
-  timeoutMs = 12000
+  timeoutMs = 12000,
+  bypassHttpCache = false
 ): Promise<MenuPayload | null> {
   if (!menuApiConfigured()) return null;
 
@@ -39,6 +40,11 @@ export async function fetchMenuPayload(
     const res = await fetch(menuEndpoint(restaurantId), {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
+      /* The Worker sends max-age=60, stale-while-revalidate=300, so the default
+         cache mode replays the previous response from the browser's HTTP cache
+         instead of asking again. Clearing localStorage is not enough for that
+         layer — the Refresh pill has to opt out of it explicitly. */
+      cache: bypassHttpCache ? 'no-store' : 'default',
     });
     if (!res.ok) return null;
     const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
