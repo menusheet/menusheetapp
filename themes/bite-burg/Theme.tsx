@@ -298,6 +298,17 @@ function slugify(v: string) {
   return v.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
 }
 
+/* `owner_contact` from data/restaurants.json, stored with its country code. */
+function ownerWa(raw?: string) {
+  const d = String(raw || '').replace(/\D/g, '');
+  return d ? `+${d}` : '';
+}
+
+function orderRef(name: string) {
+  const tag = name.replace(/[^a-z0-9]/gi, '').slice(0, 4).toUpperCase() || 'ORD';
+  return `${tag}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+}
+
 /* ───────────── small UI ───────────── */
 function VegMark({ isVeg }: { isVeg: boolean }) {
   const c = isVeg ? '#1F7A3D' : 'var(--ms-primary)';
@@ -574,26 +585,51 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
     (mode === 'pickup' || form.address.trim().length > 5);
 
   const sendWhatsApp = () => {
-    const bar = '──────────────';
-    const rows = lines.map(
-      (l) => `${l.qty} × ${l.name}${l.variant ? ` (${l.variant})` : ''} — ${money(l.qty * l.price)}`
-    );
+    const rule = '━━━━━━━━━━━━━━';
+    const now = new Date();
+    const placed = now.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const isDelivery = mode === 'delivery';
+    const rows = lines.flatMap((l, i) => [
+      `${i + 1}. ${l.isVeg === false ? '[N] ' : '[V] '}${l.name}${l.variant ? ` (${l.variant})` : ''}`,
+      `    ${l.qty} x ${money(l.price)} = ${money(l.qty * l.price)}`,
+    ]);
     const text = [
-      `*${restaurant.name}* — New order`,
-      bar,
-      `*Type:* ${mode === 'pickup' ? 'Pickup' : 'Delivery'}`,
+      `*${restaurant.name.toUpperCase()}*`,
+      '*ORDER RECEIPT*',
+      rule,
+      `*Order ID:* #${orderRef(restaurant.name)}`,
+      `*Placed:* ${placed}`,
+      `*Order type:* ${isDelivery ? 'Delivery' : 'Pickup'}`,
+      rule,
+      isDelivery ? '*DELIVERY DETAILS*' : '*PICKUP DETAILS*',
       `*Name:* ${form.name.trim()}`,
       `*Phone:* ${form.phone.trim()}`,
-      mode === 'delivery' ? `*Address:* ${form.address.trim()}` : '',
-      bar,
+      isDelivery ? `*Address:* ${form.address.trim()}` : '',
+      rule,
+      '*ITEMS*',
       ...rows,
-      bar,
-      `*Items:* ${count}`,
-      `*Total:* ${money(total)}`,
+      rule,
+      `Total items : ${count}`,
+      `*TOTAL: ${money(total)}*`,
+      `*Payment:* ${isDelivery ? 'Pay on delivery' : 'Pay at counter'}`,
       form.note.trim() ? `\n*Note:* ${form.note.trim()}` : '',
-    ].filter(Boolean).join('\n');
-    // No number: WhatsApp opens its contact picker so the order can be sent to anyone.
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      '',
+      rule,
+      'Sent via MenuSheet',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const owner = ownerWa((restaurant as any).ownerContact);
+    const url = owner
+      ? `https://wa.me/${owner}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank', 'noopener,noreferrer') || (window.location.href = url);
   };
 
@@ -991,7 +1027,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
           ))}
         </div>
         <p className="mt-3 px-1 text-[12px]" style={{ color: 'var(--ms-muted)' }}>
-          WhatsApp will open so you can choose who to send the bill to.
+          WhatsApp will open with this order ready to send to {restaurant.name}.
         </p>
       </Sheet>
     </div>
