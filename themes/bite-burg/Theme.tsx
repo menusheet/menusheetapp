@@ -642,7 +642,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
     (mode === 'pickup' || form.address.trim().length > 5);
 
   const sendWhatsApp = () => {
-    const rule = '-----------------';
+    const rule = '━━━━━━━━━━━━━━';
     const now = new Date();
     const placed = now.toLocaleString('en-IN', {
       day: '2-digit',
