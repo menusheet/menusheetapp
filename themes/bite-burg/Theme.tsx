@@ -115,9 +115,9 @@ function Logo({ url, size }: { url?: string | null; size: number }) {
 type Poster = { image?: string; title?: string; subtitle?: string; bg?: string; light?: boolean };
 
 const SAMPLE_POSTERS: Poster[] = [
-  { image: SAMPLE_HERO, title: 'Made to order', subtitle: 'Fresh burgers, hot off the grill.', bg: 'linear-gradient(135deg,#E31E24,#6B0B0F)' },
+  { image: SAMPLE_HERO2, title: 'Made to order', subtitle: 'Fresh burgers, hot off the grill.', bg: 'linear-gradient(135deg,#E31E24,#6B0B0F)' },
   { image: SAMPLE_HERO1,title: 'Double the flavour', subtitle: 'Try our signature stacks.', bg: 'linear-gradient(135deg,#292116 0%,#E31E24 100%)' },
-  { image: SAMPLE_HERO2,title: 'Order in seconds', subtitle: 'Add to cart and send it on WhatsApp.', bg: 'linear-gradient(135deg,#F4DD00,#FFB800)', light: true },
+  { image: SAMPLE_HERO,title: 'Order in seconds', subtitle: 'Add to cart and send it on WhatsApp.', bg: 'linear-gradient(135deg,#F4DD00,#FFB800)', light: true },
 ];
 
 function PosterSlide({ p }: { p: Poster }) {
