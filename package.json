@@ -6,9 +6,10 @@
     "dev": "next dev",
     "prebuild": "node scripts/generate-static-data.js",
     "build": "next build",
-    "lint": "next lint",
+    "lint": "eslint .",
     "sync-data": "node scripts/generate-static-data.js",
-    "deploy": "npm run build && npx wrangler pages deploy out --project-name=menusheet"
+    "deploy": "node scripts/deploy-pages.mjs",
+    "deploy:preview": "node scripts/deploy-pages.mjs --preview"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

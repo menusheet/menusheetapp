@@ -1,0 +1,37 @@
+name = "menusheet-api"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+account_id = "711ec981986c84d300e11828528f64ec"
+
+# This Worker replaces two previous deployments:
+#   - admin-auth-worker  (menu sheet -> admin auth + Apps Script proxy)
+#   - cloudflare-worker  (nightly reconciler cron, now obsolete)
+# The restaurant roster, billing state and cached menus all live in KV.
+
+# Secrets — set with `wrangler secret put <NAME>`, never in this file:
+#   ADMIN_EMAIL       operator login email
+#   ADMIN_PASSWORD    operator login password
+#   SESSION_SECRET    HMAC key for the session cookie (falls back to SHARED_SECRET)
+#   SHARED_SECRET     shared secret the Apps Script "Reload" button authenticates with
+
+[vars]
+# Comma-separated list of browser origins allowed to make credentialed admin
+# calls. Do not set this to "*" — it is the only CSRF defence while the session
+# cookie is SameSite=None.
+ALLOWED_ORIGINS = "https://menusheetapp.pages.dev,http://localhost:3000,http://127.0.0.1:3000"
+
+# Fallback menu cache lifetime in seconds, used when a restaurant has no
+# cache_ttl_seconds of its own. The per-restaurant value in the admin portal
+# always wins, and 0 there means "never expire".
+DEFAULT_MENU_TTL_SECONDS = "3600"
+
+[[kv_namespaces]]
+binding = "RESTAURANTS"
+id = "28b1c61081b84f3cb5e578dc90331c05"
+
+[[kv_namespaces]]
+binding = "MENUS"
+id = "4585a11a2da545df984cb8eb84248745"
+
+[observability]
+enabled = false

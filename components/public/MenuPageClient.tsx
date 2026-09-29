@@ -3,15 +3,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getTheme } from '@/themes';
 import { clearCache, readCache, writeCache } from '@/lib/menuCache';
+import { fetchMenuPayload, menuApiConfigured } from '@/lib/menuApi';
 import { normalizeMenuPayload } from '@/lib/normalizeMenu';
 import type { MenuPayload, RestaurantInfo } from '@/lib/types';
 
 interface Props {
   restaurantId: string;
+  /**
+   * The theme to render. The pre-rendered /r/{id} pages get this from the build
+   * manifest; the catch-all shell passes '' because it serves ids the build has
+   * never heard of and learns the theme from the API instead.
+   */
   themeKey: string;
-  appscriptUrl: string;
   initialPayload: MenuPayload;
   fallbackName: string;
+  /**
+   * Rewrite document.title once the real name is known. Only the shell needs
+   * this — a pre-rendered page already has a correct server-rendered title and
+   * overwriting it client-side would just risk drifting from it.
+   */
+  updateDocumentTitle?: boolean;
 }
 
 function timeAgo(ts: number): string {
@@ -23,17 +34,34 @@ function timeAgo(ts: number): string {
   return `${Math.floor(hrs / 24)} d ago`;
 }
 
+function ThemePending() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-neutral-50">
+      <div
+        className="h-8 w-8 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600"
+        role="status"
+        aria-label="Loading menu"
+      />
+    </div>
+  );
+}
+
 export default function MenuPageClient({
   restaurantId,
   themeKey,
-  appscriptUrl,
   initialPayload,
   fallbackName,
+  updateDocumentTitle = false,
 }: Props) {
-  const theme = getTheme(themeKey);
+  const configured = menuApiConfigured();
+
   const [payload, setPayload] = useState<MenuPayload>(
-    appscriptUrl ? { ...initialPayload, status: 'loading' } : initialPayload
+    configured ? { ...initialPayload, status: 'loading' } : initialPayload
   );
+  /* The theme is chosen by the roster, not by the build, so a theme change
+     takes effect on the next page load with no redeploy. The build-time key is
+     only the first guess, used until the API answers. */
+  const [activeThemeKey, setActiveThemeKey] = useState(themeKey);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const mounted = useRef(true);
@@ -46,43 +74,29 @@ export default function MenuPageClient({
   }, []);
 
   const fetchLive = useCallback(async (): Promise<MenuPayload | null> => {
-    if (!appscriptUrl) return null;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
-    try {
-      const sep = appscriptUrl.includes('?') ? '&' : '?';
-      const res = await fetch(`${appscriptUrl}${sep}action=getMenu`, {
-        signal: controller.signal,
-        redirect: 'follow',
-      });
-      if (!res.ok) return null;
-      const data = await res.json().catch(() => null);
-      if (!data) return null;
-      return normalizeMenuPayload(data);
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  }, [appscriptUrl]);
+    return fetchMenuPayload(restaurantId, normalizeMenuPayload);
+  }, [restaurantId]);
 
-  /* Apps Script cold starts are flaky — retry with a short backoff so a single
-     slow/failed warm-up request doesn't strand the page on the loading screen. */
+  /* The Worker answers from an edge cache, so a retry is only insurance against
+     a dropped connection rather than a cold start. Two attempts is enough. */
   const fetchLiveWithRetry = useCallback(async (): Promise<MenuPayload | null> => {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       const live = await fetchLive();
       if (live) return live;
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      if (attempt < 1) await new Promise((r) => setTimeout(r, 600));
     }
     return null;
   }, [fetchLive]);
 
   useEffect(() => {
+    if (!configured) return undefined;
+
     const cached = readCache(restaurantId);
     let cancelled = false;
 
     if (cached?.fresh) {
       setPayload(cached.payload);
+      setActiveThemeKey(cached.payload.theme_key || themeKey);
       setUpdatedAt(cached.timestamp);
       return undefined;
     }
@@ -91,6 +105,7 @@ export default function MenuPageClient({
        then swap in fresh data when the network round-trip finishes. */
     if (cached) {
       setPayload(cached.payload);
+      setActiveThemeKey(cached.payload.theme_key || themeKey);
       setUpdatedAt(cached.timestamp);
     }
 
@@ -99,38 +114,43 @@ export default function MenuPageClient({
       if (cancelled) return;
       if (live) {
         setPayload(live);
+        if (live.theme_key) setActiveThemeKey(live.theme_key);
         setUpdatedAt(Date.now());
         writeCache(restaurantId, live);
       } else if (!cached) {
-        /* Nothing cached and every attempt failed — fall back to the server's
+        /* Nothing cached and the request failed — fall back to the build-time
            snapshot so the loading screen can't spin forever. The Refresh pill
-           stays available to retry the live fetch. */
+           stays available to retry. */
         setPayload(initialPayload);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [restaurantId, fetchLiveWithRetry, initialPayload]);
+  }, [restaurantId, configured, fetchLiveWithRetry, initialPayload, themeKey]);
 
   const onRefresh = useCallback(async () => {
-    if (!appscriptUrl || refreshing) return;
+    if (!configured || refreshing) return;
     setRefreshing(true);
     clearCache(restaurantId);
     const live = await fetchLive();
     if (live) {
       setPayload(live);
+      if (live.theme_key) setActiveThemeKey(live.theme_key);
       setUpdatedAt(Date.now());
       writeCache(restaurantId, live);
     }
     setRefreshing(false);
-  }, [appscriptUrl, restaurantId, refreshing, fetchLive]);
+  }, [configured, restaurantId, refreshing, fetchLive]);
+
+  const theme = activeThemeKey ? getTheme(activeThemeKey) : null;
 
   const themeProps = useMemo(() => {
+    if (!theme) return null;
     const cfg = theme.config;
     const live = payload.restaurant;
     const restaurant: RestaurantInfo = {
-      name: cfg.name || live?.name || fallbackName,
+      name: cfg.name || live?.name || payload.restaurant_name || fallbackName,
       tagline: cfg.tagline || live?.tagline,
       logoUrl: cfg.logoUrl || undefined,
       heroImageUrl: cfg.heroImageUrl || undefined,
@@ -138,12 +158,29 @@ export default function MenuPageClient({
     return { restaurant, menu: payload.menu ?? [], status: payload.status };
   }, [theme, payload, fallbackName]);
 
+  /* Read off themeProps before the early return below, and keep the effect with
+     the other hooks — a hook after a conditional return does not run on the
+     render that bails out, which loses a hook and breaks the next render. */
+  const resolvedName = themeProps?.restaurant.name;
+  const resolvedTagline = themeProps?.restaurant.tagline;
+
+  useEffect(() => {
+    if (!updateDocumentTitle || !resolvedName) return;
+    document.title = resolvedTagline ? `${resolvedName} — ${resolvedTagline}` : `${resolvedName} — Menu`;
+  }, [updateDocumentTitle, resolvedName, resolvedTagline]);
+
+  /* Pre-rendered pages always arrive with a theme key from the build manifest.
+     The /r-shell catch-all does not: it serves any restaurant id, so it only
+     learns the theme from the API response. Hold a neutral spinner for that
+     one round trip rather than flashing the fallback theme. */
+  if (!theme || !themeProps) return <ThemePending />;
+
   const ThemeComponent = theme.Component;
 
   return (
     <>
       <ThemeComponent {...themeProps} />
-      {appscriptUrl ? (
+      {configured ? (
         <div
           className="fixed bottom-3 left-1/2 z-30 -translate-x-1/2 opacity-0 transition-opacity duration-300 hover:opacity-100 focus-within:opacity-100"
           style={{ opacity: refreshing ? 1 : undefined }}
