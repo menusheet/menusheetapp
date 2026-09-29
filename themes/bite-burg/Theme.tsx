@@ -77,10 +77,10 @@ const SAMPLE_HERO =
   'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=70';
 
   const SAMPLE_HERO1 =
-  'https://drive.google.com/thumbnail?id=1e17FiVBADmqB94V_qcVUXoVZc6DjErX4&sz=w256';
+  'https://drive.google.com/thumbnail?id=1e17FiVBADmqB94V_qcVUXoVZc6DjErX4&sz=w1024';
 
   const SAMPLE_HERO2 =
-  'https://drive.google.com/thumbnail?id=1OP_TQ-Le07JXL-ksdYiRT5svb0-oujt6&sz=w256';
+  'https://drive.google.com/thumbnail?id=1OP_TQ-Le07JXL-ksdYiRT5svb0-oujt6&sz=w1024';
 
 function SampleLogo({ size }: { size: number }) {
   return (
