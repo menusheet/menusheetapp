@@ -475,15 +475,43 @@ function PoweredBy() {
 function StatusScreen({ restaurant, title, subtitle }: { restaurant: ThemeProps['restaurant']; title: string; subtitle: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center" style={{ ...cssVars, ...body, background: 'var(--ms-background)', color: 'var(--ms-text)' }}>
-      {restaurant.logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={restaurant.logoUrl} alt={`${restaurant.name} logo`} className="mb-6 h-14 w-auto object-contain" />
-      ) : (
-        <span className="mb-6 text-xl" style={heading}>{restaurant.name || 'Menu'}</span>
-      )}
-      <h1 dir="auto" className="text-[28px] font-bold tracking-tight">{title}</h1>
+      <div className="mb-5 shrink-0 rounded-[19px] bg-white p-1" style={{ boxShadow: '0 4px 14px rgba(0,0,0,.12)' }}>
+        <Logo url={restaurant.logoUrl} size={56} />
+      </div>
+      <p dir="auto" className="text-[15px] font-semibold" style={{ color: 'var(--ms-text)' }}>{restaurant.name || 'Menu'}</p>
+      <h1 dir="auto" className="mt-1 text-[28px] font-bold tracking-tight">{title}</h1>
       <p dir="auto" className="mt-2 max-w-xs text-[15px]" style={{ color: 'var(--ms-muted)' }}>{subtitle}</p>
       <PoweredBy />
+    </div>
+  );
+}
+
+function BurgerLoader() {
+  return (
+    <div
+      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading menu"
+    >
+      <style>{`@keyframes ms-burger{0%,100%{transform:translateY(0) scale(1)}25%{transform:translateY(-5px) scale(1.03)}50%{transform:translateY(0) scale(.98)}75%{transform:translateY(0) scale(1.02)}}
+        @keyframes ms-steam{0%,100%{opacity:.25;transform:translateY(2px)}50%{opacity:.8;transform:translateY(-2px)}}`}</style>
+      <div className="flex flex-col items-center gap-3">
+        <svg viewBox="0 0 64 56" className="h-16 w-16" aria-hidden="true">
+          <g style={{ animation: 'ms-burger 1.4s cubic-bezier(.4,0,.2,1) infinite', transformOrigin: '32px 56px' }}>
+            <path d="M6 24C6 13 18 6 32 6s26 7 26 18H6Z" fill="#F4DD00" />
+            <rect x="4" y="26" width="56" height="5" rx="2.5" fill="#8FCB4E" />
+            <rect x="6" y="33" width="52" height="8" rx="4" fill="#7A3B22" />
+            <path d="M5 44h54c0 4-3 6-12 6H17c-9 0-12-2-12-6Z" fill="#E8A33D" />
+          </g>
+          <g fill="none" stroke="#C9C9CE" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M22 14c0-4 4-4 4-8" style={{ animation: 'ms-steam 1.4s ease-in-out infinite' }} />
+            <path d="M32 12c0-5 5-5 5-10" style={{ animation: 'ms-steam 1.4s ease-in-out .3s infinite' }} />
+            <path d="M42 14c0-4 4-4 4-8" style={{ animation: 'ms-steam 1.4s ease-in-out .6s infinite' }} />
+          </g>
+        </svg>
+        <p className="text-[15px] font-semibold" style={{ color: 'var(--ms-muted)' }}>Cooking...</p>
+      </div>
     </div>
   );
 }
@@ -491,7 +519,10 @@ function StatusScreen({ restaurant, title, subtitle }: { restaurant: ThemeProps[
 function Skeleton() {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-16">
-      <div className="h-12 w-56 animate-pulse rounded-xl" style={{ background: '#E4E4E8' }} />
+      <BurgerLoader />
+      <div className="flex items-center gap-3">
+        <div className="h-6 w-40 animate-pulse rounded-lg" style={{ background: '#E4E4E8' }} />
+      </div>
       <div className="mt-8 space-y-3">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex animate-pulse gap-4 rounded-[22px] p-3" style={{ background: '#fff' }}>

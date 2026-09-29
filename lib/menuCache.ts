@@ -1,8 +1,11 @@
 import type { MenuPayload } from './types';
 
 const PREFIX = 'menusheet_menu_';
-const DEFAULT_TTL_HOURS = Number(process.env.NEXT_PUBLIC_MENU_CACHE_TTL_HOURS) || 6;
-const SHORT_TTL_MS = 15 * 60 * 1000;
+
+const ttlMinutes = Number(process.env.NEXT_PUBLIC_MENU_CACHE_TTL_MINUTES);
+const DEFAULT_TTL_MINUTES = Number.isFinite(ttlMinutes) && ttlMinutes > 0 ? ttlMinutes : 5;
+/* Inactive/expired are kill-switches, so they refresh faster than live menus. */
+const SHORT_TTL_MINUTES = 15;
 
 interface CacheEntry {
   payload: MenuPayload;
@@ -14,8 +17,8 @@ export interface CachedMenu extends CacheEntry {
 }
 
 function ttlFor(payload: MenuPayload): number {
-  if (payload.status === 'ok') return DEFAULT_TTL_HOURS * 3600 * 1000;
-  return SHORT_TTL_MS;
+  if (payload.status === 'ok') return DEFAULT_TTL_MINUTES * 60 * 1000;
+  return SHORT_TTL_MINUTES * 60 * 1000;
 }
 
 function isValidPayload(value: unknown): value is MenuPayload {
