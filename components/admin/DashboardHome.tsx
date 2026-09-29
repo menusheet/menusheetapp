@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import manifestJson from '@/data/restaurants.json';
-import { listRestaurants, pushSettingsToRestaurant, updateRestaurant } from '@/lib/adminApi';
-import { daysLeft, formatDate } from '@/lib/date';
+import { listRestaurants, reloadMenu, updateRestaurant } from '@/lib/adminApi';
+import { daysLeft, formatDate, formatDateTime } from '@/lib/date';
 import type { RestaurantRecord } from '@/lib/types';
 import {
   DaysBadge,
@@ -18,23 +16,24 @@ import {
   Toast,
   Toggle,
 } from '@/components/admin/ui';
-import { IconAlert, IconCalendar, IconEdit, IconEye, IconGrid, IconPlus, IconQr } from '@/components/icons';
+import { IconAlert, IconCalendar, IconEdit, IconEye, IconGrid, IconPlus, IconQr, IconRefresh } from '@/components/icons';
 import QRCodeModal from '@/components/admin/QRCodeModal';
 
-const buildTimeIds = new Set(
-  ((manifestJson as { restaurants?: Array<{ restaurant_id: string }> }).restaurants || []).map(
-    (r) => r.restaurant_id
-  )
-);
-
 export default function DashboardHome() {
-  const router = useRouter();
   const [rows, setRows] = useState<RestaurantRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [qrRow, setQrRow] = useState<RestaurantRecord | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [reloadingId, setReloadingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    const data = await listRestaurants();
+    setRows(data);
+    setError(null);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +48,17 @@ export default function DashboardHome() {
       cancelled = true;
     };
   }, []);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const stats = useMemo(() => {
     const all = rows || [];
@@ -88,18 +98,28 @@ export default function DashboardHome() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2600);
+    setTimeout(() => setToast(null), 3200);
   };
 
+  /**
+   * The Worker applies the kill switch itself on every read, so flipping this
+   * takes effect on the next customer page load. There is no second system to
+   * push to and nothing to wait for.
+   */
   const toggleActive = async (row: RestaurantRecord) => {
     setTogglingId(row.restaurant_id);
+    const next = !row.active;
     setRows((prev) =>
-      prev ? prev.map((r) => (r.restaurant_id === row.restaurant_id ? { ...r, active: !r.active } : r)) : prev
+      prev ? prev.map((r) => (r.restaurant_id === row.restaurant_id ? { ...r, active: next } : r)) : prev
     );
     try {
-      await updateRestaurant({ restaurant_id: row.restaurant_id, active: !row.active });
-      await pushSettingsToRestaurant(row.appscript_url, { menu_active: !row.active }).catch(() => {});
-      showToast(`${row.restaurant_name} is now ${!row.active ? 'active' : 'inactive'}`);
+      const { restaurant, restaurants } = await updateRestaurant({
+        restaurant_id: row.restaurant_id,
+        active: next,
+      });
+      if (restaurants) setRows(restaurants);
+      else setRows((prev) => (prev ? prev.map((r) => (r.restaurant_id === row.restaurant_id ? restaurant : r)) : prev));
+      showToast(`${row.restaurant_name} is now ${next ? 'active' : 'inactive'}`);
     } catch (e) {
       setRows((prev) =>
         prev ? prev.map((r) => (r.restaurant_id === row.restaurant_id ? { ...r, active: row.active } : r)) : prev
@@ -110,12 +130,28 @@ export default function DashboardHome() {
     }
   };
 
-  const openEdit = (row: RestaurantRecord) => {
-    if (buildTimeIds.has(row.restaurant_id)) {
-      router.push(`/admin/restaurants/${row.restaurant_id}`);
-    } else {
-      router.push(`/admin/restaurants/new?edit=${encodeURIComponent(row.restaurant_id)}`);
+  /**
+   * Re-fetch one restaurant's sheet into the KV cache.
+   *
+   * The only path in the product that reads Google Apps Script, and it runs
+   * because an operator asked for it — never on a schedule, never on a
+   * customer page load.
+   */
+  const reloadOne = async (row: RestaurantRecord) => {
+    setReloadingId(row.restaurant_id);
+    try {
+      const result = await reloadMenu(row.restaurant_id);
+      if (result.restaurants) setRows(result.restaurants);
+      showToast(`${row.restaurant_name}: ${result.itemCount} item(s) published`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Reload failed');
+    } finally {
+      setReloadingId(null);
     }
+  };
+
+  const openEdit = (row: RestaurantRecord) => {
+    window.location.assign(`/admin/restaurants/${row.restaurant_id}`);
   };
 
   return (
@@ -125,8 +161,8 @@ export default function DashboardHome() {
         subtitle="Live overview of every restaurant on MenuSheet."
         actions={
           <>
-            <SecondaryButton onClick={() => location.reload()}>
-              <span className={rows ? '' : 'inline-block animate-spin'}>↻</span> Refresh data
+            <SecondaryButton onClick={() => void refresh()}>
+              <IconRefresh className={refreshing || !rows ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Refresh data
             </SecondaryButton>
             <Link href="/admin/restaurants/new">
               <PrimaryButton>
@@ -137,14 +173,14 @@ export default function DashboardHome() {
         }
       />
 
-      {error ? <ErrorBanner message={`Could not reach the Admin Sheet: ${error}`} /> : null}
+      {error ? <ErrorBanner message={`Could not reach the platform: ${error}`} /> : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           featured
           label="Total Restaurants"
           value={stats.total}
-          caption={`${buildTimeIds.size} deployed at last build`}
+          caption="in the live roster"
           icon={<IconGrid />}
         />
         <StatCard label="Active" value={stats.active} caption="live & serving menus" captionTone="positive" icon={<IconEye />} />
@@ -185,14 +221,14 @@ export default function DashboardHome() {
         </div>
 
         {!rows ? (
-          <Spinner label="Loading restaurants from the Admin Sheet…" />
+          <Spinner label="Loading restaurants…" />
         ) : filtered.length === 0 ? (
           <div className="px-5 py-14 text-center text-sm text-gray-400">
             No restaurants match “{query}”.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
+            <table className="w-full min-w-[880px] text-sm">
               <thead>
                 <tr className="border-y border-gray-100 bg-canvas/60 text-left text-xs uppercase tracking-wide text-gray-400">
                   <th className="px-5 py-3 font-semibold">Restaurant</th>
@@ -200,6 +236,7 @@ export default function DashboardHome() {
                   <th className="px-4 py-3 font-semibold">Expiry</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold">Theme</th>
+                  <th className="px-4 py-3 font-semibold">Menu fetched</th>
                   <th className="px-5 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -230,8 +267,18 @@ export default function DashboardHome() {
                       <td className="px-4 py-3.5">
                         <code className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500">{row.theme_key}</code>
                       </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-xs text-gray-500">
+                        {row.last_checked_at ? relativeTime(row.last_checked_at) : 'never'}
+                      </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
+                          <IconButton
+                            title="Fetch this restaurant's menu from its sheet now"
+                            busy={reloadingId === row.restaurant_id}
+                            onClick={() => void reloadOne(row)}
+                          >
+                            <IconRefresh className="h-4 w-4" />
+                          </IconButton>
                           <IconButton title="Preview menu" onClick={() => window.open(`/r/${row.restaurant_id}`, '_blank')}>
                             <IconEye className="h-4 w-4" />
                           </IconButton>
@@ -266,6 +313,19 @@ export default function DashboardHome() {
   );
 }
 
+function relativeTime(iso: string): string {
+  const t = Date.parse(iso);
+  if (isNaN(t)) return 'never';
+  const mins = Math.floor((Date.now() - t) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days} d ago`;
+  return formatDate(iso);
+}
+
 function PageHeader({
   title,
   subtitle,
@@ -290,18 +350,20 @@ function IconButton({
   children,
   onClick,
   title,
+  busy,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   title: string;
+  busy?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
       aria-label={title}
-      className="grid h-9 w-9 place-items-center rounded-full border border-gray-150 bg-white text-gray-500 shadow-sm transition hover:bg-canvas hover:text-gray-800"
-      style={{ borderColor: '#eeeef2' }}
+      disabled={busy}
+      className="grid h-9 w-9 place-items-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-canvas hover:text-gray-800 disabled:opacity-50"
     >
       {children}
     </button>
@@ -375,7 +437,8 @@ function ReminderWidget({ row, onOpen }: { row: RestaurantRecord | null; onOpen:
             </p>
           </div>
           <p className="mt-3 text-xs leading-relaxed text-gray-500">
-            Renew by extending the expiry date — it syncs to their sheet automatically at midnight.
+            Renew by extending the expiry date. It takes effect the moment you save — the
+            platform enforces it on every page load.
           </p>
           <div className="mt-auto pt-4">
             <PrimaryButton onClick={onOpen} className="w-full">
@@ -393,40 +456,53 @@ function ReminderWidget({ row, onOpen }: { row: RestaurantRecord | null; onOpen:
   );
 }
 
+/**
+ * Replaces the old "Worker sync status" panel.
+ *
+ * There is no nightly job any more, so "stale" no longer means a background
+ * reconciliation is behind. It now means the opposite of healthy: nobody has
+ * pressed Reload for this restaurant, so its menu is whatever was last pulled
+ * out of the sheet.
+ */
 function HealthWidget({ rows }: { rows: RestaurantRecord[] | null }) {
-  const stale = useMemo(() => {
-    const cutoff = Date.now() - 36 * 3600 * 1000;
-    return (rows || []).filter((r) => {
-      if (!r.last_checked_at) return true;
-      const t = Date.parse(r.last_checked_at);
-      return isNaN(t) || t < cutoff;
-    }).length;
+  const counts = useMemo(() => {
+    const all = rows || [];
+    const fetched = all.filter((r) => r.last_checked_at).length;
+    return {
+      total: all.length,
+      fetched,
+      never: all.length - fetched,
+      week: all.filter((r) => {
+        if (!r.last_checked_at) return false;
+        const t = Date.parse(r.last_checked_at);
+        return isNaN(t) || Date.now() - t > 7 * 24 * 3600 * 1000;
+      }).length,
+    };
   }, [rows]);
-
-  const neverSynced = (rows || []).filter((r) => !r.last_checked_at).length;
 
   return (
     <div className="rounded-2xl bg-forest-900 p-5 text-white shadow-card">
       <div className="flex items-start justify-between">
-        <h3 className="font-bold tracking-tight">Worker sync status</h3>
+        <h3 className="font-bold tracking-tight">Menu cache</h3>
         <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-forest-200">
-          daily · 00:00
+          on demand
         </span>
       </div>
-      <p className="mt-4 font-mono text-[26px] font-bold leading-none tracking-tight">{stale}</p>
-      <p className="mt-1.5 text-xs text-forest-200">restaurant(s) not checked in the last 36 hours</p>
+      <p className="mt-4 font-mono text-[26px] font-bold leading-none tracking-tight">{counts.fetched}</p>
+      <p className="mt-1.5 text-xs text-forest-200">of {counts.total} restaurant(s) have a fetched menu</p>
       <div className="mt-4 space-y-2 text-xs">
         <div className="flex justify-between rounded-lg bg-white/10 px-3 py-2">
-          <span className="text-forest-100">Never synced</span>
-          <span className="font-bold">{neverSynced}</span>
+          <span className="text-forest-100">Never reloaded</span>
+          <span className="font-bold">{counts.never}</span>
         </div>
         <div className="flex justify-between rounded-lg bg-white/10 px-3 py-2">
-          <span className="text-forest-100">Total tracked</span>
-          <span className="font-bold">{(rows || []).length}</span>
+          <span className="text-forest-100">Not reloaded in 7 days</span>
+          <span className="font-bold">{counts.week}</span>
         </div>
       </div>
       <p className="mt-3 text-[11px] leading-relaxed text-forest-300">
-        The Cloudflare Worker reconciles billing state every night. Stale rows may mean an unreachable Apps Script URL.
+        Nothing is fetched on a schedule. A restaurant&rsquo;s menu updates when an operator
+        presses Reload, or when the owner uses the button in their own sheet.
       </p>
     </div>
   );

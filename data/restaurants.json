@@ -1,7 +1,20 @@
 {
-  "generatedAt": "2026-09-29T06:29:24.815Z",
-  "source": "live",
   "restaurants": [
+    {
+      "restaurant_id": "demo",
+      "restaurant_name": "The Green Fork",
+      "owner_contact": "",
+      "appscript_url": "",
+      "sheet_id": "",
+      "theme_key": "demo",
+      "active": true,
+      "expiry_date": "2099-12-31",
+      "plan_amount": 0,
+      "onboarded_at": "2026-01-01",
+      "last_checked_at": "",
+      "notes": "Built-in sample used by the landing page. Its menu is written straight into KV, so it has no Apps Script.",
+      "cache_ttl_seconds": 0
+    },
     {
       "restaurant_id": "test",
       "restaurant_name": "test",
@@ -9,12 +22,13 @@
       "appscript_url": "https://script.google.com/macros/s/AKfycbwbDHIQcHW7QAXAVMCEcHc8PCtrb_IdHNpktRX_GeiO2u2O3yAb6hYEAEexm-ZpQbEznQ/exec",
       "sheet_id": "12Ej5Vcod72geZ3RGCO0jPf_8XlfP37XKfhyZeoAxuQA",
       "theme_key": "demo",
-      "active": "FALSE",
+      "active": false,
       "expiry_date": "2026-09-23",
       "plan_amount": 100,
       "onboarded_at": "2026-08-25",
       "last_checked_at": "2026-09-28T18:30:27.998Z",
-      "notes": "nothing"
+      "notes": "nothing",
+      "cache_ttl_seconds": 0
     },
     {
       "restaurant_id": "thottara-kitchen",
@@ -23,12 +37,13 @@
       "appscript_url": "https://script.google.com/macros/s/AKfycbx__j39nHVUdMwz4XjwVD3tGcqIzvN_MqESgbg-AeLFYPJb6A1psOsbOmmyfHWi6Gc6wg/exec",
       "sheet_id": "10AzosUoU1m9ALfVA-qnbtR2_raS9DKHqMiJ72nP0y28",
       "theme_key": "thottara-kitchen",
-      "active": "FALSE",
+      "active": false,
       "expiry_date": "2026-09-28",
       "plan_amount": 100,
       "onboarded_at": "2026-08-25",
       "last_checked_at": "2026-09-28T18:30:27.998Z",
-      "notes": ""
+      "notes": "",
+      "cache_ttl_seconds": 0
     },
     {
       "restaurant_id": "bite-burg",
@@ -37,12 +52,13 @@
       "appscript_url": "https://script.google.com/macros/s/AKfycbx01xmxa5HwRInbQWM1rKhMpa9N2UEZICmYY17HgoXJ89oZEksJfN8sKgLe0V10rd6l/exec",
       "sheet_id": "1s3X_CTv533OuK0NxrX128udGa6IPhCqs7LuUJNadpGo",
       "theme_key": "bite-burg",
-      "active": "TRUE",
+      "active": true,
       "expiry_date": "2026-10-28",
       "plan_amount": 100,
       "onboarded_at": "2026-09-28",
       "last_checked_at": "2026-09-28T18:30:27.998Z",
-      "notes": ""
+      "notes": "",
+      "cache_ttl_seconds": 0
     }
   ]
 }

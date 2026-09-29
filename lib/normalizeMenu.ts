@@ -1,9 +1,14 @@
 import { parsePrice } from './price';
 import type { MenuItem, MenuPayload } from './types';
 
-/* Shared by the client (live getMenu fetch) and the server (build-time
+/* Shared by the client (live platform API fetch) and the server (build-time
    snapshots), so a snapshot and a live payload always look the same to themes
-   regardless of whether the source used snake_case or camelCase keys. */
+   regardless of whether the source used snake_case or camelCase keys.
+
+   'loading' is accepted because that is what the platform answers with when a
+   menu's cache has lapsed and nobody has pressed Reload yet. The page stays on
+   its spinner and offers the Refresh pill rather than claiming the
+   subscription lapsed. */
 
 function bool(v: unknown, fallback: boolean): boolean {
   return v === true || String(v).trim().toUpperCase() === 'TRUE'
@@ -44,12 +49,21 @@ export function normalizeMenuItem(raw: Record<string, unknown>): MenuItem {
 export function normalizeMenuPayload(data: Record<string, unknown>): MenuPayload | null {
   if (!data || typeof data !== 'object') return null;
   const status = String((data as { status?: unknown }).status || '');
-  if (!['ok', 'inactive', 'expired'].includes(status)) return null;
-  if (status !== 'ok') return { status: status as MenuPayload['status'] };
+  if (!['ok', 'inactive', 'expired', 'loading'].includes(status)) return null;
+
+  const rawRestaurant = ((data as { restaurant?: Record<string, unknown> }).restaurant || {}) as Record<string, unknown>;
+  const chrome = {
+    theme_key: str((data as { theme_key?: unknown }).theme_key) || undefined,
+    restaurant_name: str((data as { restaurant_name?: unknown }).restaurant_name) || undefined,
+    reason: str((data as { reason?: unknown }).reason) || undefined,
+    fetched_at: (data as { fetched_at?: unknown }).fetched_at ? String((data as { fetched_at: unknown }).fetched_at) : null,
+  };
+
+  if (status !== 'ok') return { status: status as MenuPayload['status'], ...chrome };
+
   const rawMenu = Array.isArray((data as { menu?: unknown }).menu)
     ? ((data as { menu: unknown[] }).menu as Record<string, unknown>[])
     : [];
-  const rawRestaurant = ((data as { restaurant?: Record<string, unknown> }).restaurant || {}) as Record<string, unknown>;
   return {
     status: 'ok',
     restaurant: {
@@ -57,5 +71,6 @@ export function normalizeMenuPayload(data: Record<string, unknown>): MenuPayload
       tagline: rawRestaurant.tagline ? String(rawRestaurant.tagline) : undefined,
     },
     menu: rawMenu.map(normalizeMenuItem),
+    ...chrome,
   };
 }

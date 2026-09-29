@@ -1,0 +1,4 @@
+ADMIN_EMAIL="you@example.com"
+ADMIN_PASSWORD="a-long-local-password"
+SESSION_SECRET="a-random-32-byte-string"
+SHARED_SECRET="a-random-32-byte-string"

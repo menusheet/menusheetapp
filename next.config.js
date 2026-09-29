@@ -1,6 +1,6 @@
 const REQUIRED_PUBLIC_ENV = [
   'NEXT_PUBLIC_SITE_URL',
-  'NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL',
+  'NEXT_PUBLIC_API_URL',
 ];
 
 if (process.env.NODE_ENV === 'production') {
@@ -22,8 +22,9 @@ if (process.env.NODE_ENV === 'production') {
         '  copy the values into `.env.local` (see `.env.example`).\n' +
         '\n' +
         'Note: admin credentials and SHARED_SECRET are NOT build-time vars. They\n' +
-        'live as encrypted secrets on the admin-auth Worker (see\n' +
-        'admin-auth-worker/wrangler.toml) and are never exposed to the browser.\n'
+        'live as encrypted secrets on the platform Worker (see worker/wrangler.toml)\n' +
+        'and are never exposed to the browser. The browser only sees the public\n' +
+        'NEXT_PUBLIC_API_URL and reaches it with a session cookie.\n'
     );
   }
 }

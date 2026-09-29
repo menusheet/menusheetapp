@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const authWorkerUrl = process.env.NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL || '(not set)';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || '(not set)';
 
 export default function AdminSettingsPage() {
   return (
@@ -14,49 +14,84 @@ export default function AdminSettingsPage() {
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Settings</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Everything on this page is configured through environment variables and requires a rebuild +
-          redeploy to change.
+          How the platform is wired. Billing and cache state are edited per restaurant on the
+          dashboard, not here.
         </p>
       </div>
 
-      <Card title="Admin access (Cloudflare Worker)">
+      <Card title="Platform Worker">
         <p className="text-sm leading-relaxed text-gray-600">
-          Sign-in is handled by the MenuSheet auth Worker, which verifies your credentials and
-          issues a signed, HttpOnly session cookie. Credentials and session signing live as
-          encrypted secrets on the Worker — they are never sent to the browser and never appear
-          in this page&apos;s JavaScript.
+          One Worker holds everything privileged: the restaurant roster, the cached menus, sign-in
+          and the session cookie. The browser talks only to this URL, and only ever sends a session
+          cookie with it. Nothing about the roster or the sheets is exposed to the client bundle.
         </p>
-        <Row label="Auth worker" value={authWorkerUrl} mono />
+        <Row label="Public API URL" value={apiUrl} mono />
         <Hint>
-          Env var: NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL. Change the operator email or password with{' '}
-          <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs">wrangler secret put ADMIN_EMAIL</code>{' '}
-          / <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs">ADMIN_PASSWORD</code> in
-          the admin-auth-worker directory.
+          Env var: <code>NEXT_PUBLIC_API_URL</code>. Because this project uses{' '}
+          <code>output: &quot;export&quot;</code>, changing it requires a rebuild &amp; redeploy.
+        </Hint>
+      </Card>
+
+      <Card title="Admin access">
+        <p className="text-sm leading-relaxed text-gray-600">
+          Sign-in is handled by the platform Worker, which verifies your credentials and issues a
+          signed, HttpOnly, SameSite=None session cookie. Credentials and the session signing key
+          live as encrypted secrets on the Worker, so they are never sent to the browser and never
+          appear in this page&apos;s JavaScript.
+        </p>
+        <Row label="Holds ADMIN_EMAIL" value="Platform Worker (secret)" />
+        <Row label="Holds ADMIN_PASSWORD" value="Platform Worker (secret)" />
+        <Hint>
+          Change them with{' '}
+          <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs">
+            wrangler secret put ADMIN_PASSWORD
+          </code>{' '}
+          from the <code className="font-mono text-xs">worker/</code> directory. No deploy or
+          rebuild needed, and every existing session keeps working.
         </Hint>
       </Card>
 
       <Card title="Shared secret (Apps Script)">
         <p className="text-sm leading-relaxed text-gray-600">
-          SHARED_SECRET gates all write actions against your Google Sheets (add/update restaurant,
-          update settings, worker reconciliation). It is held only on the auth Worker and injected
-          upstream server-side — it is no longer embedded in this dashboard bundle.
+          <code>SHARED_SECRET</code> authenticates the Worker to each restaurant&apos;s Apps Script
+          web app. It lives only on the Worker and is injected server-side, so it is not embedded
+          anywhere in this dashboard. It is also still present in each owner&apos;s deployed script,
+          because the Worker presents it when it asks for a menu.
         </p>
-        <Row label="Holds SHARED_SECRET" value="Auth Worker (server-side only)" />
+        <Row label="Holds SHARED_SECRET" value="Platform Worker (secret)" />
         <Hint>
-          Rotation runbook: docs/onboarding-checklist.md § SHARED_SECRET rotation. Remember existing
-          restaurants&apos; deployed scripts keep the old secret until you redeploy their script too.
+          Rotation runbook: <code>docs/onboarding-checklist.md</code>, SHARED_SECRET rotation.
+          Restaurants&apos; deployed scripts keep the old secret until you redeploy their script,
+          so rotate the Worker first, then the scripts.
         </Hint>
       </Card>
 
-      <Card title="Deploys & rebuilds">
+      <Card title="How often things update">
         <ul className="list-inside list-disc space-y-1.5 text-sm text-gray-600">
-          <li>New restaurant or new/changed theme → rebuild + redeploy required.</li>
-          <li>Menu edits, expiry changes, active toggles → live via Apps Script, no deploy needed.</li>
-          <li>Deploy command: <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs">npm run deploy</code></li>
-          <li>The nightly Cloudflare Worker keeps billing state in sync across sheets.</li>
+          <li>
+            <strong className="font-semibold text-gray-700">Live, no deploy:</strong> adding a
+            restaurant, editing billing, toggling active, switching theme, editing a menu. These
+            write to KV and take effect on the next page load.
+          </li>
+          <li>
+            <strong className="font-semibold text-gray-700">On demand only:</strong> menus are
+            fetched from a restaurant&apos;s Google Sheet when an operator presses Reload here, or
+            when the owner presses{' '}
+            <em>MenuSheet &rarr; Reload menu on website</em> in their own sheet. Nothing is fetched
+            on a schedule.
+          </li>
+          <li>
+            <strong className="font-semibold text-gray-700">Needs a rebuild:</strong> a brand-new
+            theme, because themes are compiled into the client bundle. A new restaurant using an
+            existing theme does not.
+          </li>
+          <li>
+            Deploy command:{' '}
+            <code className="rounded bg-canvas px-1.5 py-0.5 font-mono text-xs">npm run deploy</code>
+          </li>
         </ul>
         <Link href="/admin" className="mt-4 inline-block text-sm font-semibold text-forest-700 hover:underline">
-          ← Back to dashboard
+          Back to dashboard
         </Link>
       </Card>
     </div>

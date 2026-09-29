@@ -5,22 +5,42 @@
  *  Deploy once per restaurant Google Sheet:
  *    1. Open the restaurant's Google Sheet → Extensions → Apps Script.
  *    2. Paste this entire file over Code.gs.
- *    3. Replace REPLACE_ME below with the current SHARED_SECRET
- *       (same secret as the Cloudflare Worker + Admin Dashboard).
- *    4. Deploy → New deployment → type "Web app".
+ *    3. Fill in the three REPLACE_ME values below:
+ *         RESTAURANT_ID   your /r/{id} slug, from the MenuSheet admin portal
+ *         RESTAURANT_NAME the display name shown on the page
+ *         API_URL         the menusheet-api Worker URL
+ *         SHARED_SECRET   the same secret the Worker holds
+ *    4. Run initSheet() once from the editor to create the Menu tab.
+ *    5. Deploy → New deployment → type "Web app".
  *         - Execute as:  Me (<sheet owner account>)
  *         - Who has access: Anyone
- *    5. Copy the /exec URL into the Admin Dashboard row for this
- *       restaurant (appscript_url column).
+ *    6. Copy the /exec URL into the restaurant's page in the admin portal
+ *       (Apps Script Web App URL field).
+ *
+ *  There is deliberately only ONE tab: "Menu".
+ *
+ *  The old Settings tab held restaurant_id, restaurant_name, menu_active,
+ *  expiry_date and last_synced_at. None of it belongs here any more. Billing
+ *  and the active flag live in the platform's own database, and duplicating
+ *  them in an editable tab only created a second answer that could disagree
+ *  with the first — so the identifier is hardcoded at the top of this file
+ *  instead, and the sheet holds nothing but the menu.
+ *
+ *  This script is READ-ONLY. It never writes to the spreadsheet except when
+ *  initSheet() is run once by hand.
  *
  *  Endpoints:
- *    GET  ?action=getMenu                       public — full menu JSON
- *    GET  ?action=getSettings&key=SECRET        worker-only — raw Settings
- *    POST {key, action:"updateSettings",        worker-only — overwrite
- *          payload:{menu_active, expiry_date,     Settings tab
- *                   last_synced_at}}
+ *    GET ?action=getMenu     the only endpoint. Public. Full menu JSON.
+ *    GET ?action=health      liveness check used by the onboarding checklist.
  *
- *  Expected sheet tabs: "Menu" and "Settings" (see docs/sheet-templates/).
+ *  Plus a spreadsheet menu item:
+ *    MenuSheet > Reload menu on website
+ *    Saves nothing. Asks the platform to re-fetch this menu right now, so an
+ *    edit shows up on the public page without waiting for the cache to lapse.
+ *    You can keep editing afterwards and press it again whenever you like.
+ *
+ *  Expected sheet tabs: "Menu" only. Run initSheet() once to create it — it
+ *    writes the headers and a couple of sample rows for the owner to overwrite.
  *
  *  The "price" column also carries price variations, so owners never have to
  *  add a column. Use a single price for most dishes:
@@ -33,19 +53,41 @@
  *
  *  Any labels work, and the lowest amount is what shows in the price column.
  *  Mirror of the parser in lib/price.ts — keep the two in lockstep.
- *
- *  First time setup:
- *    Run initSheet() from the Apps Script editor to create the Menu
- *    and Settings tabs with headers and sample data.
  */
 
+// ---- Fill these in, then deploy -------------------------------------
+
+/** Your public menu URL is {API_URL-host}/r/{RESTAURANT_ID}. Shown in the admin portal. */
+var RESTAURANT_ID = 'REPLACE_ME';
+
+/** Display name. Optional: the platform already knows your name and will use
+ *  that if this is left blank. Set it if you want the sheet to be self-contained. */
+var RESTAURANT_NAME = '';
+
+/** The menusheet-api Worker URL. */
+var API_URL = 'REPLACE_ME';
+
+/** Must match the SHARED_SECRET the Worker holds. */
 var SHARED_SECRET = 'REPLACE_ME';
 
-/** How long the built menu JSON is served from the script cache. The costiest
- *  part of a getMenu request is re-reading the Menu tab, so repeat hits (every
- *  customer scanning the QR code) skip the sheet entirely. Owner edits land
- *  within this window — keep it short enough for "live" updates to feel live. */
-var MENU_CACHE_TTL_SECONDS = 120;
+/** How long the built menu JSON is served from the script cache. The Worker
+ *  only asks for the menu when an operator or this sheet's Reload button asks
+ *  it to, so this is now a backstop against a burst of requests rather than the
+ *  thing that makes the site feel live. Owner edits appear on the public menu
+ *  when Reload is pressed. */
+var MENU_CACHE_TTL_SECONDS = 3600;
+
+var CONFIG_ERROR =
+  'This script has not been told where the MenuSheet service lives.\n\n' +
+  'Ask your MenuSheet provider to redeploy the script with the restaurant id, ' +
+  'API URL and shared secret filled in.';
+
+var ID_ERROR =
+  'Your restaurant_id is not set yet.\n\n' +
+  'Open Extensions → Apps Script and set RESTAURANT_ID at the top of the file ' +
+  'to the id shown in the MenuSheet admin portal, then redeploy.\n\n' +
+  'You can still edit your menu in the meantime — it just cannot be published yet.';
+
 
 // ----------------------------------------------------------------
 //  initSheet — run once from the editor to set up the spreadsheet
@@ -54,11 +96,12 @@ var MENU_CACHE_TTL_SECONDS = 120;
 function initSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // ---- Menu tab ------------------------------------------------
+  // One tab. "Menu" is the whole contract between this script and the platform.
   var menuSh = ss.getSheetByName('Menu');
   if (!menuSh) {
     menuSh = ss.insertSheet('Menu');
   }
+
   var menuHeaders = ['id', 'category', 'name', 'description', 'price', 'image_url', 'is_veg', 'is_available', 'sort_order'];
   var existingMenuHeaders = [];
   if (menuSh.getLastRow() > 0) {
@@ -77,7 +120,7 @@ function initSheet() {
       ['M002', 'Starters',     'Chicken 65',         'Crispy fried, curry leaf & chilli',                   340, '', 'FALSE', 'TRUE',  2],
       ['M003', 'Main Course',  'Dal Makhani',        'Slow-cooked black lentils, butter',                   280, '', 'TRUE',  'TRUE',  3],
       ['M004', 'Main Course',  'Butter Chicken',     'Tomato gravy, cream, tandoori chicken',               380, '', 'FALSE', 'TRUE',  4],
-      ['M005', 'Beverages',    'Masala Chai',        'House spice blend',                                    80, '', 'TRUE',  'TRUE',  5],
+      ['M005', 'Beverages',    'Masala Chai',        'House spice blend',                                  80, '', 'TRUE',  'TRUE',  5],
       ['M006', 'Desserts',     'Gulab Jamun',        'Warm, rose syrup, pistachio',                         120, '', 'TRUE',  'FALSE', 6],
       ['M007', 'Main Course',  'Margherita Pizza',   'San Marzano tomato, fior di latte, basil',  'Small-220, Medium-320, Large-420', '', 'TRUE', 'TRUE',  7]
     ];
@@ -85,102 +128,157 @@ function initSheet() {
     menuSh.autoResizeColumns(1, menuHeaders.length);
     Logger.log('Menu tab created with ' + sampleMenu.length + ' sample items.');
   } else {
-    Logger.log('Menu tab already has correct headers — skipped.');
+    Logger.log('Menu tab already has correct headers — left your data alone.');
   }
 
-  // ---- Settings tab -------------------------------------------
-  var settingsSh = ss.getSheetByName('Settings');
-  if (!settingsSh) {
-    settingsSh = ss.insertSheet('Settings');
-  }
-  var existingSettingsRows = settingsSh.getLastRow();
-  var settingsHasKey = false;
-  if (existingSettingsRows > 0) {
-    var firstCol = settingsSh.getRange(1, 1, existingSettingsRows, 1).getValues();
-    for (var r = 0; r < firstCol.length; r++) {
-      if (String(firstCol[r][0]).trim().toLowerCase() === 'key') { settingsHasKey = true; break; }
-    }
-  }
-  if (!settingsHasKey) {
-    settingsSh.clear();
-    settingsSh.getRange(1, 1, 1, 2).setValues([['Key', 'Value']]).setFontWeight('bold').setBackground('#f0f0f0');
-    settingsSh.setFrozenRows(1);
-    var defaultExpiry = new Date();
-    defaultExpiry.setDate(defaultExpiry.getDate() + 30);
-    var expiryStr = defaultExpiry.toISOString().slice(0, 10);
-    var settingsRows = [
-      ['menu_active',     'TRUE'],
-      ['expiry_date',     expiryStr],
-      ['restaurant_name', 'My Restaurant'],
-      ['last_synced_at',  '']
-    ];
-    settingsSh.getRange(2, 1, settingsRows.length, 2).setValues(settingsRows);
-    settingsSh.autoResizeColumns(1, 2);
-    Logger.log('Settings tab created with defaults (expiry ' + expiryStr + ').');
-  } else {
-    Logger.log('Settings tab already has a Key header — skipped.');
+  // A Settings tab from an older deployment is not read by anything any more.
+  // Removing it is safe and stops it drifting into looking authoritative.
+  var staleSettings = ss.getSheetByName('Settings');
+  if (staleSettings) {
+    ss.deleteSheet(staleSettings);
+    Logger.log('Removed the now-unused Settings tab.');
   }
 
   SpreadsheetApp.flush();
   Logger.log('initSheet complete. Delete the sample menu items and fill in real data.');
+  if (RESTAURANT_ID === 'REPLACE_ME') {
+    Logger.log('WARNING: RESTAURANT_ID is still REPLACE_ME — the Reload button will not work until you set it and redeploy.');
+  }
 }
+
+// ----------------------------------------------------------------
+//  Spreadsheet menu: MenuSheet > Reload menu on website
+// ----------------------------------------------------------------
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('MenuSheet')
+    .addItem('Reload menu on website', 'reloadMenuOnWebsite')
+    .addSeparator()
+    .addItem('How do I set this up?', 'showSetupHelp')
+    .addToUi();
+}
+
+function showSetupHelp() {
+  SpreadsheetApp.getUi().alert(
+    'Using MenuSheet',
+    '1. Your menu lives in the "Menu" tab. Edit it whenever you like.\n\n' +
+    '2. Press "Reload menu on website" to publish your latest edits to your ' +
+    'public menu page. Nothing else is needed.\n\n' +
+    '3. Your menu is at ' + restaurantUrl_() + '\n\n' +
+    'The Reload button is how your changes reach customers. Until it has been ' +
+    'pressed once, your public page has no menu on it.',
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+function restaurantUrl_() {
+  var base = String(API_URL || '').replace(/\/+$/, '');
+  if (base) return base.replace(/^https?:\/\/[^/]+/, '') + '/r/' + String(RESTAURANT_ID || 'your-id');
+  return '/r/' + String(RESTAURANT_ID || 'your-id');
+}
+
+function isConfigured_() {
+  return RESTAURANT_ID !== 'REPLACE_ME' && API_URL !== 'REPLACE_ME' && SHARED_SECRET !== 'REPLACE_ME';
+}
+
+function reloadMenuOnWebsite() {
+  var ui = SpreadsheetApp.getUi();
+
+  if (RESTAURANT_ID === 'REPLACE_ME') {
+    ui.alert('Almost there', ID_ERROR, ui.ButtonSet.OK);
+    return;
+  }
+  if (API_URL === 'REPLACE_ME' || SHARED_SECRET === 'REPLACE_ME') {
+    ui.alert('Not configured yet', CONFIG_ERROR, ui.ButtonSet.OK);
+    return;
+  }
+
+  var res;
+  var result;
+  try {
+    res = UrlFetchApp.fetch(trim_(API_URL) + '/api/reload?key=' + encodeURIComponent(SHARED_SECRET), {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ restaurant_id: String(RESTAURANT_ID).trim() }),
+      muteHttpExceptions: true
+    });
+    result = JSON.parse(res.getContentText());
+  } catch (err) {
+    ui.alert('Could not reach MenuSheet', 'The request failed before it got an answer:\n\n' + err, ui.ButtonSet.OK);
+    return;
+  }
+
+  if (res.getResponseCode() !== 200 || result.error) {
+    ui.alert(
+      'Reload failed',
+      (result && result.error ? result.error : 'The service returned HTTP ' + res.getResponseCode() + '.') +
+      '\n\nYour menu is untouched and still live on the website. Try again in a moment.',
+      ui.ButtonSet.OK
+    );
+    return;
+  }
+
+  var count = (typeof result.items === 'number') ? result.items : 0;
+  ui.alert(
+    'Menu published',
+    'Your latest menu is now live — ' + count + ' item' + (count === 1 ? '' : 's') + ' published.\n\n' +
+    'Keep editing and press this button again whenever you want to push another change.',
+    ui.ButtonSet.OK
+  );
+}
+
+// ----------------------------------------------------------------
+//  Web endpoints
+// ----------------------------------------------------------------
 
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || '';
   if (action === 'getMenu') {
-    return json_(getMenuPayload());
+    /* fresh=1 means somebody deliberately asked for the sheet to be re-read
+       right now, so the script cache must not be allowed to answer. */
+    var fresh = !!e.parameter.fresh && e.parameter.fresh === '1';
+    return json_(getMenuPayload(fresh));
   }
-  if (action === 'getSettings' && e.parameter.key === SHARED_SECRET) {
-    return json_(getSettingsRaw());
-  }
-  return json_({ error: 'invalid action' });
-}
-
-function doPost(e) {
-  var body;
-  try {
-    body = JSON.parse(e.postData.contents);
-  } catch (err) {
-    return json_({ error: 'invalid JSON body' });
-  }
-  if (!body || body.key !== SHARED_SECRET) {
-    return json_({ error: 'unauthorized' });
-  }
-  if (body.action === 'updateSettings') {
-    return json_(updateSettings(body.payload || {}));
+  if (action === 'health') {
+    return json_({ status: 'ok', item_count: readMenuTab().length });
   }
   return json_({ error: 'invalid action' });
 }
 
-function getMenuPayload() {
-  var settings = readSettingsTab();
-  if (settings.menu_active !== true) {
-    return { status: 'inactive' };
-  }
-  if (isExpired_(settings.expiry_date)) {
-    return { status: 'expired' };
-  }
-
-  // Kill-switch statuses above are always read fresh so a block or expiry takes
-  // effect immediately. Live menus are cached — the Menu-tab read is the slow
-  // part of every request.
+/**
+  * The whole job of this script.
+  *
+  * There is no menu_active / expiry check here any more. The platform decides
+  * whether a subscriber's menu is allowed to be shown, from its own records, at
+  * the moment a customer loads the page. Duplicating that decision here would
+  * only create a second answer that can disagree with the first.
+  *
+  * @param {boolean} fresh Skip the script cache and re-read the sheet.
+  * @return {Object} The menu payload.
+  */
+function getMenuPayload(fresh) {
   var cache = CacheService.getScriptCache();
-  var cached = cache.get('menuPayload');
-  if (cached) {
-    try {
-      return JSON.parse(cached);
-    } catch (err) {
-      /* corrupt entry — rebuild below */
+  if (!fresh) {
+    var cached = cache.get('menuPayload');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (err) {
+        /* corrupt entry — rebuild below */
+      }
     }
   }
 
   var payload = {
     status: 'ok',
     restaurant: {
-      name: settings.restaurant_name || ''
+      id: String(RESTAURANT_ID || '').trim(),
+      name: String(RESTAURANT_NAME || '').trim()
     },
     menu: readMenuTab()
   };
+
   try {
     // Script cache caps a single value near 100KB — bigger menus just skip
     // caching and stay as fast as the sheet allows.
@@ -193,78 +291,12 @@ function getMenuPayload() {
   return payload;
 }
 
-function getSettingsRaw() {
-  return { status: 'ok', settings: readSettingsTab() };
-}
-
-function updateSettings(payload) {
-  var allowed = ['menu_active', 'expiry_date', 'last_synced_at', 'restaurant_name'];
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    var sh = getOrCreateSettingsSheet_();
-    var values = sh.getDataRange().getValues();
-    var rowIndex = {};
-    for (var i = 1; i < values.length; i++) {
-      rowIndex[str_(values[i][0])] = i + 1;
-    }
-    for (var k = 0; k < allowed.length; k++) {
-      var key = allowed[k];
-      if (!(key in payload)) continue;
-      var value = payload[key];
-      if (key === 'menu_active') value = boolText_(value);
-      var row = rowIndex[key];
-      if (row) {
-        sh.getRange(row, 2).setValue(value);
-      } else {
-        sh.appendRow([key, value]);
-      }
-    }
-    SpreadsheetApp.flush();
-    try {
-      CacheService.getScriptCache().remove('menuPayload');
-    } catch (err) {
-      /* noop */
-    }
-    return { status: 'ok', updated: Object.keys(payload) };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
 // ---------------------------------------------------------------- helpers
 
 function getMenuSheet_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Menu');
   if (!sh) throw new Error('Missing "Menu" tab');
   return sh;
-}
-
-function getOrCreateSettingsSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('Settings');
-  if (!sh) {
-    sh = ss.insertSheet('Settings');
-    sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, 2).setValues([['Key', 'Value']]).setFontWeight('bold');
-  }
-  return sh;
-}
-
-function readSettingsTab() {
-  var sh = getOrCreateSettingsSheet_();
-  var values = sh.getDataRange().getValues();
-  var settings = {};
-  for (var i = 1; i < values.length; i++) {
-    settings[str_(values[i][0])] = str_(values[i][1]);
-  }
-  return {
-    menu_active: bool_(settings.menu_active),
-    expiry_date: settings.expiry_date || '',
-    restaurant_name: settings.restaurant_name || '',
-    last_synced_at: settings.last_synced_at || '',
-    raw: settings
-  };
 }
 
 function readMenuTab() {
@@ -315,13 +347,6 @@ function readMenuTab() {
   return items;
 }
 
-function isExpired_(expiryStr) {
-  if (!expiryStr) return false;
-  var t = new Date(expiryStr + 'T23:59:59');
-  if (isNaN(t.getTime())) return false;
-  return t.getTime() < Date.now();
-}
-
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -336,6 +361,10 @@ function str_(v) {
 function num_(v) {
   var n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? 0 : n;
+}
+
+function trim_(v) {
+  return String(v === null || v === undefined ? '' : v).replace(/\/+$/, '');
 }
 
 // ---------------------------------------------------------------- price grammar
@@ -500,8 +529,4 @@ function bool_(v) {
   if (v === true) return true;
   if (v === false || v === '' || v === null || v === undefined) return false;
   return String(v).trim().toUpperCase() === 'TRUE';
-}
-
-function boolText_(v) {
-  return bool_(v) ? 'TRUE' : 'FALSE';
 }

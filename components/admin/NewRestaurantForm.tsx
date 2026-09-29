@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import manifestJson from '@/data/restaurants.json';
 import { addRestaurant, listRestaurants, updateRestaurant } from '@/lib/adminApi';
 import { getThemeKeys } from '@/themes';
 import type { RestaurantRecord } from '@/lib/types';
@@ -33,11 +32,16 @@ function defaultExpiry(): string {
   return d.toISOString().slice(0, 10);
 }
 
-const buildTimeIds = new Set(
-  ((manifestJson as { restaurants?: Array<{ restaurant_id: string }> }).restaurants || []).map(
-    (r) => r.restaurant_id
-  )
-);
+/* Same presets as the detail page, so an operator never sees two vocabularies. */
+const TTL_PRESET_LABELS = [
+  'Never expires (until next Reload)',
+  '15 minutes',
+  '1 hour',
+  '6 hours',
+  '24 hours',
+  '7 days',
+];
+const TTL_PRESET_VALUES = ['0', '900', '3600', '21600', '86400', '604800'];
 
 export default function NewRestaurantForm() {
   return (
@@ -64,6 +68,7 @@ function Form() {
   const [planAmount, setPlanAmount] = useState('100');
   const [notes, setNotes] = useState('');
   const [active, setActive] = useState(false);
+  const [cacheTtl, setCacheTtl] = useState('0');
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +95,7 @@ function Form() {
           setPlanAmount(String(found.plan_amount ?? '100'));
           setNotes(found.notes);
           setActive(found.active);
+          setCacheTtl(String(found.cache_ttl_seconds ?? 0));
         }
       })
       .catch(() => undefined)
@@ -123,15 +129,18 @@ function Form() {
       plan_amount: Number(planAmount) || 100,
       notes: notes.trim(),
       active,
+      cache_ttl_seconds: Number(cacheTtl) || 0,
     };
     try {
-      let saved: RestaurantRecord | null;
+      let saved: RestaurantRecord;
       if (isEdit && record) {
-        saved = await updateRestaurant({ ...fields, restaurant_id: record.restaurant_id });
+        const result = await updateRestaurant({ ...fields, restaurant_id: record.restaurant_id });
+        saved = result.restaurant;
       } else {
-        saved = await addRestaurant({ ...fields, restaurant_id: slugify(restaurantId || name) });
+        const result = await addRestaurant({ ...fields, restaurant_id: slugify(restaurantId || name) });
+        saved = result.restaurant;
       }
-      setDone(saved || ({ ...(fields as RestaurantRecord), restaurant_id: restaurantId || slugify(name) } as RestaurantRecord));
+      setDone(saved);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -149,8 +158,8 @@ function Form() {
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           {isEdit
-            ? 'This restaurant was added after the last deploy — edit its billing fields here; changes save straight to the Admin Sheet.'
-            : 'Creates the row in your Admin Google Sheet. The public menu page appears after the next build & deploy.'}
+            ? 'Quick edit for a restaurant that is already in the live roster. Saves straight to the platform database.'
+            : 'Creates the record in the platform database. The public menu URL works as soon as you press Reload — no build, no deploy.'}
         </p>
       </div>
 
@@ -207,22 +216,32 @@ function Form() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Expiry date" hint="Source of truth for billing. The nightly Worker enforces this.">
+            <Field label="Expiry date" hint="Enforced by the platform on every customer page load.">
               <input type="date" required value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className={inputClass} />
             </Field>
-            <Field label="Active now?" hint="You can also toggle this later from the dashboard.">
-              <button
-                type="button"
-                onClick={() => setActive(!active)}
-                className={`inline-flex h-[42px] w-full items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition ${
-                  active ? 'border-forest-200 bg-forest-50 text-forest-800' : 'border-gray-200 bg-white text-gray-500'
-                }`}
-              >
-                <span className={`h-2 w-2 rounded-full ${active ? 'bg-forest-500' : 'bg-gray-300'}`} />
-                {active ? 'Active' : 'Inactive (default)'}
-              </button>
+            <Field label="Cache lifetime" hint="How long a fetched menu is served before it lapses.">
+              <Select
+                value={cacheTtl}
+                onChange={setCacheTtl}
+                options={TTL_PRESET_LABELS}
+                values={TTL_PRESET_VALUES}
+                placeholder="Custom…"
+              />
             </Field>
           </div>
+
+          <Field label="Active now?" hint="You can also toggle this later from the dashboard.">
+            <button
+              type="button"
+              onClick={() => setActive(!active)}
+              className={`inline-flex h-[42px] w-full items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition ${
+                active ? 'border-forest-200 bg-forest-50 text-forest-800' : 'border-gray-200 bg-white text-gray-500'
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${active ? 'bg-forest-500' : 'bg-gray-300'}`} />
+              {active ? 'Active' : 'Inactive (default)'}
+            </button>
+          </Field>
 
           <Field label="Notes" hint="Free text — anything worth remembering about this account.">
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} />
@@ -245,22 +264,20 @@ function Form() {
 }
 
 function SuccessPanel({ record, wasEdit }: { record: RestaurantRecord; wasEdit: boolean }) {
-  const deployed = buildTimeIds.has(record.restaurant_id);
   const steps = [
-    { done: true, text: 'Row created in the Admin Sheet' },
+    { done: true, text: 'Saved in the platform database' },
     {
       done: Boolean(record.sheet_id),
-      text: 'Owner copies docs/sheet-templates structure into their own Google Sheet',
+      text: 'Owner creates a blank Google Sheet and pastes the script there',
     },
     {
       done: Boolean(record.appscript_url),
       text: 'Deploy apps-script/restaurant-template.gs on that sheet → paste the /exec URL above',
     },
     {
-      done: deployed && record.theme_key !== 'demo',
-      text: `Generate themes/${record.theme_key}/ with the AI prompt (themes/README.md), commit it`,
+      done: false,
+      text: 'Press Reload menu now to fetch the sheet and publish it at this URL',
     },
-    { done: deployed, text: 'Rebuild & redeploy so /r/' + record.restaurant_id + ' exists publicly' },
     { done: false, text: 'Download QR from the dashboard and hand it over 🎉' },
   ];
 
@@ -272,6 +289,23 @@ function SuccessPanel({ record, wasEdit }: { record: RestaurantRecord; wasEdit: 
           {wasEdit ? 'Changes saved' : `${record.restaurant_name} is onboarded!`}
         </h1>
         <p className="mt-1 font-mono text-sm text-gray-400">/r/{record.restaurant_id}</p>
+
+        {!wasEdit && !record.appscript_url ? (
+          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-left text-xs leading-relaxed text-amber-800">
+            <strong className="font-semibold">No Apps Script URL yet.</strong> Until the owner
+            deploys their copy of the script and you paste the /exec URL here, pressing Reload
+            will fail — there is nothing to read the menu from.
+          </p>
+        ) : null}
+
+        {!wasEdit ? (
+          <p className="mt-4 rounded-xl bg-forest-50 px-4 py-3 text-left text-xs leading-relaxed text-forest-800">
+            <strong className="font-semibold">No deploy needed.</strong> The /r/ fallback page
+            picks up any id the platform knows about, so this URL is live as soon as the first
+            Reload succeeds. It gets a proper pre-rendered page on the next deploy, which only
+            improves SEO and load time.
+          </p>
+        ) : null}
 
         <div className="mt-6 space-y-2.5 text-left">
           {steps.map((s, i) => (
@@ -289,11 +323,9 @@ function SuccessPanel({ record, wasEdit }: { record: RestaurantRecord; wasEdit: 
         </div>
 
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          {deployed ? (
-            <Link href={`/admin/restaurants/${record.restaurant_id}`}>
-              <PrimaryButton>Open restaurant page</PrimaryButton>
-            </Link>
-          ) : null}
+          <Link href={`/admin/restaurants/${record.restaurant_id}`}>
+            <PrimaryButton>Open restaurant page</PrimaryButton>
+          </Link>
           <Link href="/admin">
             <SecondaryButton>Back to dashboard</SecondaryButton>
           </Link>

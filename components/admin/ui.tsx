@@ -320,11 +320,18 @@ export function Select({
   value,
   onChange,
   options,
-  placeholder = 'Select…',
+  values,
+  placeholder = 'Select.',
 }: {
   value: string;
   onChange: (v: string) => void;
   options: string[];
+  /**
+   * Optional parallel array of stored values, when an option needs a label that
+   * differs from what it means — "15 minutes" storing 900, for instance. When
+   * omitted, the option text is used as the value, as before.
+   */
+  values?: string[];
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -349,7 +356,7 @@ export function Select({
         }`}
       >
         <span className={value ? 'text-gray-900' : 'text-gray-400'}>
-          {value || placeholder}
+          {options[options.findIndex((_, i) => (values ? values[i] : options[i]) === value)] ?? placeholder}
         </span>
         <svg className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 9l6 6 6-6" />
@@ -357,20 +364,23 @@ export function Select({
       </button>
       {open ? (
         <div className="absolute z-10 mt-1 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-float max-h-56">
-          {options.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => { onChange(opt); setOpen(false); }}
-              className={`flex w-full items-center px-3.5 py-2 text-sm transition text-left ${
-                value === opt
-                  ? 'bg-forest-50 font-semibold text-forest-800'
-                  : 'text-gray-700 hover:bg-canvas'
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
+          {options.map((opt, i) => {
+            const optValue = values ? (values[i] ?? opt) : opt;
+            return (
+              <button
+                key={optValue}
+                type="button"
+                onClick={() => { onChange(optValue); setOpen(false); }}
+                className={`flex w-full items-center px-3.5 py-2 text-sm transition text-left ${
+                  value === optValue
+                    ? 'bg-forest-50 font-semibold text-forest-800'
+                    : 'text-gray-700 hover:bg-canvas'
+                }`}
+              >
+                {opt}
+              </button>
+            );
+          })}
           {options.length === 0 ? (
             <p className="px-3.5 py-2 text-sm text-gray-400">No options</p>
           ) : null}

@@ -34,6 +34,14 @@ export interface MenuPayload {
   status: MenuStatus;
   restaurant?: RestaurantInfo;
   menu?: MenuItem[];
+  /** Theme to render with, from the platform roster. Absent on older payloads. */
+  theme_key?: string;
+  /** Restaurant name from the platform roster, used when a theme has no name of its own. */
+  restaurant_name?: string;
+  /** ISO timestamp of when this menu was last pulled from the restaurant's sheet. */
+  fetched_at?: string | null;
+  /** Machine-readable explanation, e.g. "awaiting_reload" or "subscription_expired". */
+  reason?: string;
 }
 
 export interface RestaurantRecord {
@@ -49,11 +57,30 @@ export interface RestaurantRecord {
   onboarded_at: string;
   last_checked_at: string;
   notes: string;
+  /**
+   * How long the platform serves this restaurant's cached menu, in seconds.
+   * 0 means "never expire" — the menu stays live until someone presses Reload.
+   */
+  cache_ttl_seconds: number;
+}
+
+export interface MenuCacheStatus {
+  restaurant_id: string;
+  cached: boolean;
+  fetched_at: string | null;
+  age_seconds: number | null;
+  item_count: number;
+  cached_status: string | null;
+  ttl_seconds: number;
+  expires_in_seconds: number | null;
 }
 
 export interface RestaurantsManifest {
-  generatedAt: string;
-  source: 'live' | 'cache' | 'seed';
+  /**
+   * Only the ids that should get a pre-rendered /r/{id} page. Hand-maintained.
+   * The real roster lives in the platform's KV and is edited in the dashboard;
+   * an id missing from this list still works, via the /r-shell catch-all.
+   */
   restaurants: RestaurantRecord[];
 }
 
