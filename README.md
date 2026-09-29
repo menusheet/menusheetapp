@@ -17,7 +17,7 @@ Admin Sheet ──Admin Apps Script──► Admin Dashboard (Cloudflare auth Wo
 
 - **Public pages** are pre-rendered at build time from `data/` snapshots; after load,
   the browser fetches `?action=getMenu` from the restaurant's own Apps Script with a
-  localStorage cache (6 h TTL) so repeat QR scans never hit quota.
+  localStorage cache (5 min TTL) so repeat QR scans never hit quota.
 - **Billing state** lives in the Admin Sheet (source of truth). The Worker reconciles
   every restaurant's Settings tab nightly and auto-deactivates expired accounts.
 - **Admin Dashboard** (`/admin`, unlisted + noindex) authenticates through the
@@ -78,7 +78,7 @@ Production and Preview:
 | Variable | Notes |
 | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | Canonical origin, e.g. `https://menusheetapp.pages.dev` |
-| `NEXT_PUBLIC_MENU_CACHE_TTL_HOURS` | Optional, defaults to `6` |
+| `NEXT_PUBLIC_MENU_CACHE_TTL_MINUTES` | Optional, defaults to `5` |
 | `NEXT_PUBLIC_ADMIN_AUTH_WORKER_URL` | Public URL of the auth Worker |
 
 `.env.local` is gitignored, so it is **only** for local development and local builds —
