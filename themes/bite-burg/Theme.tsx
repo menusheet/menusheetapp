@@ -903,7 +903,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
                 {q > 0 ? (
                   <Stepper small qty={q} onMinus={() => change(picking!, v, -1)} onPlus={() => change(picking!, v, 1)} />
                 ) : (
-                  <button type="button" onClick={() => change(picking!, v, 1)} className="h-8 rounded-full px-4 text-[14px] font-semibold" style={{ background: '#F0F0F3', color: 'var(--ms-primary)' }}>
+                  <button type="button" onClick={() => { change(picking!, v, 1); closePicker(); }} className="h-8 rounded-full px-4 text-[14px] font-semibold" style={{ background: '#F0F0F3', color: 'var(--ms-primary)' }}>
                     Add
                   </button>
                 )}
