@@ -76,6 +76,12 @@ function CachedImg({ src, alt, className }: { src: string; alt: string; classNam
 const SAMPLE_HERO =
   'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=70';
 
+  const SAMPLE_HERO1 =
+  'https://drive.google.com/thumbnail?id=1e17FiVBADmqB94V_qcVUXoVZc6DjErX4&sz=w256';
+
+  const SAMPLE_HERO2 =
+  'https://drive.google.com/thumbnail?id=1OP_TQ-Le07JXL-ksdYiRT5svb0-oujt6&sz=w256';
+
 function SampleLogo({ size }: { size: number }) {
   return (
     <svg viewBox="0 0 64 64" width={size} height={size} role="img" aria-label="Logo" className="shrink-0">
@@ -110,8 +116,8 @@ type Poster = { image?: string; title?: string; subtitle?: string; bg?: string; 
 
 const SAMPLE_POSTERS: Poster[] = [
   { image: SAMPLE_HERO, title: 'Made to order', subtitle: 'Fresh burgers, hot off the grill.', bg: 'linear-gradient(135deg,#E31E24,#6B0B0F)' },
-  { title: 'Double the flavour', subtitle: 'Try our signature stacks.', bg: 'linear-gradient(135deg,#292116 0%,#E31E24 100%)' },
-  { title: 'Order in seconds', subtitle: 'Add to cart and send it on WhatsApp.', bg: 'linear-gradient(135deg,#F4DD00,#FFB800)', light: true },
+  { image: SAMPLE_HERO1,title: 'Double the flavour', subtitle: 'Try our signature stacks.', bg: 'linear-gradient(135deg,#292116 0%,#E31E24 100%)' },
+  { image: SAMPLE_HERO2,title: 'Order in seconds', subtitle: 'Add to cart and send it on WhatsApp.', bg: 'linear-gradient(135deg,#F4DD00,#FFB800)', light: true },
 ];
 
 function PosterSlide({ p }: { p: Poster }) {
