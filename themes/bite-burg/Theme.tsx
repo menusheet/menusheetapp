@@ -319,9 +319,10 @@ function waNumber(raw?: string) {
   return d ? `+${d}` : '';
 }
 
-function orderRef(name: string) {
-  const tag = name.replace(/[^a-z0-9]/gi, '').slice(0, 4).toUpperCase() || 'ORD';
-  return `${tag}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+function orderRef() {
+  const now = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
 }
 
 /* ───────────── small UI ───────────── */
@@ -660,7 +661,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
       `*${restaurant.name.toUpperCase()}*`,
       '*ORDER RECEIPT*',
       rule,
-      `*Order ID:* #${orderRef(restaurant.name)}`,
+      `*Order ID:* #${orderRef()}`,
       `*Placed:* ${placed}`,
       `*Order type:* ${isDelivery ? 'Delivery' : 'Pickup'}`,
       rule,

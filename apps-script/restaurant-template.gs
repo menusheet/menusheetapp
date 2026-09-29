@@ -41,6 +41,12 @@
 
 var SHARED_SECRET = 'REPLACE_ME';
 
+/** How long the built menu JSON is served from the script cache. The costiest
+ *  part of a getMenu request is re-reading the Menu tab, so repeat hits (every
+ *  customer scanning the QR code) skip the sheet entirely. Owner edits land
+ *  within this window — keep it short enough for "live" updates to feel live. */
+var MENU_CACHE_TTL_SECONDS = 120;
+
 // ----------------------------------------------------------------
 //  initSheet — run once from the editor to set up the spreadsheet
 // ----------------------------------------------------------------
@@ -154,13 +160,37 @@ function getMenuPayload() {
   if (isExpired_(settings.expiry_date)) {
     return { status: 'expired' };
   }
-  return {
+
+  // Kill-switch statuses above are always read fresh so a block or expiry takes
+  // effect immediately. Live menus are cached — the Menu-tab read is the slow
+  // part of every request.
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('menuPayload');
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (err) {
+      /* corrupt entry — rebuild below */
+    }
+  }
+
+  var payload = {
     status: 'ok',
     restaurant: {
       name: settings.restaurant_name || ''
     },
     menu: readMenuTab()
   };
+  try {
+    // Script cache caps a single value near 100KB — bigger menus just skip
+    // caching and stay as fast as the sheet allows.
+    if (JSON.stringify(payload).length < 90000) {
+      cache.put('menuPayload', JSON.stringify(payload), MENU_CACHE_TTL_SECONDS);
+    }
+  } catch (err) {
+    /* caching is best-effort */
+  }
+  return payload;
 }
 
 function getSettingsRaw() {
@@ -191,6 +221,11 @@ function updateSettings(payload) {
       }
     }
     SpreadsheetApp.flush();
+    try {
+      CacheService.getScriptCache().remove('menuPayload');
+    } catch (err) {
+      /* noop */
+    }
     return { status: 'ok', updated: Object.keys(payload) };
   } finally {
     lock.releaseLock();
