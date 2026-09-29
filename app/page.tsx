@@ -121,7 +121,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/" className="shrink-0">
-            <Wordmark className="h-7 sm:h-8" priority />
+            <Wordmark className="h-11 sm:h-12" priority />
           </Link>
           <nav className="hidden items-center gap-8 text-sm font-medium text-gray-600 md:flex">
             <a href="#how" className="hover:text-gray-900">How it works</a>
@@ -136,15 +136,6 @@ export default function LandingPage() {
             Get your QR menu
           </a>
         </div>
-        <nav
-          className="flex gap-5 overflow-x-auto border-t border-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-6 md:hidden"
-          aria-label="Sections"
-        >
-          <a href="#how" className="whitespace-nowrap">How it works</a>
-          <a href="#pricing" className="whitespace-nowrap">Pricing</a>
-          <a href="#example" className="whitespace-nowrap">Live example</a>
-          <a href="#faq" className="whitespace-nowrap">FAQ</a>
-        </nav>
       </header>
 
       <main>
@@ -196,7 +187,7 @@ export default function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-28 border-y border-gray-100 bg-[#FAFAF9] py-14 sm:py-20">
+        <section id="how" className="scroll-mt-20 border-y border-gray-100 bg-[#FAFAF9] py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="How it works"
@@ -224,7 +215,7 @@ export default function LandingPage() {
         </section>
 
         {/* Sample preview */}
-        <section id="example" className="scroll-mt-28 py-14 sm:py-20">
+        <section id="example" className="scroll-mt-20 py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="Live example"
@@ -276,7 +267,7 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="scroll-mt-28 border-y border-gray-100 bg-[#FAFAF9] py-14 sm:py-20">
+        <section id="pricing" className="scroll-mt-20 border-y border-gray-100 bg-[#FAFAF9] py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="Pricing"
@@ -317,7 +308,7 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" className="scroll-mt-28 py-14 sm:py-20">
+        <section id="faq" className="scroll-mt-20 py-14 sm:py-20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6">
             <SectionHeading
               eyebrow="FAQ"
@@ -344,7 +335,7 @@ export default function LandingPage() {
         </section>
 
         {/* Contact CTA */}
-        <section id="contact" className="scroll-mt-28 pb-16 sm:pb-20">
+        <section id="contact" className="scroll-mt-20 pb-16 sm:pb-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="relative overflow-hidden rounded-[2rem] bg-forest-900 px-8 py-14 text-center sm:px-14">
               <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full bg-forest-700/40 blur-3xl" />
@@ -380,7 +371,7 @@ export default function LandingPage() {
       <footer className="border-t border-gray-100 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 sm:flex-row sm:px-6">
           <Link href="/" className="shrink-0">
-            <Wordmark className="h-8 sm:h-9" />
+            <Wordmark className="h-12 sm:h-13" />
           </Link>
           <p className="text-sm text-gray-500">
             © {new Date().getFullYear()} MenuSheet · Digital menus made simple

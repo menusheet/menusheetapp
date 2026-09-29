@@ -106,7 +106,7 @@ function Sidebar({
       >
         <div className="flex items-center justify-between px-5 pb-6 pt-6">
           <Link href="/admin" className="min-w-0" onClick={onClose}>
-            <Wordmark className="h-8" />
+            <Wordmark className="h-12" />
           </Link>
           <button
             onClick={onClose}

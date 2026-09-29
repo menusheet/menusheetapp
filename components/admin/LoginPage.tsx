@@ -46,7 +46,7 @@ export default function LoginPage() {
     <div className="grid min-h-screen place-items-center bg-canvas px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Wordmark className="h-9 sm:h-10" priority />
+          <Wordmark className="h-11 sm:h-12" priority />
           <h1 className="mt-5 text-2xl font-extrabold tracking-tight">Sign in</h1>
           <p className="mt-1 text-sm text-gray-500">Admin dashboard access only.</p>
         </div>
