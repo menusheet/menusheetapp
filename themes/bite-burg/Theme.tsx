@@ -202,18 +202,19 @@ function Icon({ name, size = 22 }: { name: string; size?: number }) {
 }
 
 function Details({ r }: { r: any }) {
-  const phone = String(r.phone || r.contactNumber || '').trim();
-  const wa = String(r.whatsapp || r.whatsappNumber || phone).replace(/\D/g, '');
-  const ig = String(r.instagram || '').trim();
-  const address = String(r.address || '').trim();
-  const hours = typeof (r.hours || r.openingHours) === 'string' ? String(r.hours || r.openingHours) : '';
+  const phone = String(CONTACT.phone || r.phone || r.contactNumber || '').trim();
+  const wa = String(CONTACT.whatsapp || r.whatsapp || r.whatsappNumber || phone).replace(/\D/g, '');
+  const ig = String(CONTACT.instagram || r.instagram || '').trim();
+  const address = String(CONTACT.address || r.address || '').trim();
+  const hours = String(CONTACT.hours || r.hours || r.openingHours || '');
+  const web = String(CONTACT.website || r.website || '').trim();
   const map = r.mapUrl || r.googleMapsUrl || r.locationUrl || (address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '');
   const all = [
     { key: 'call', label: 'Call', icon: 'phone', bg: '#34C759', href: phone ? `tel:${phone.replace(/\s/g, '')}` : '' },
     { key: 'wa', label: 'WhatsApp', icon: 'chat', bg: '#25D366', href: wa ? `https://wa.me/${wa}` : '' },
     { key: 'map', label: 'Directions', icon: 'pin', bg: '#0A84FF', href: map },
     { key: 'ig', label: 'Instagram', icon: 'insta', bg: 'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF)', href: ig ? (/^https?:/.test(ig) ? ig : `https://instagram.com/${ig.replace(/^@/, '')}`) : '' },
-    { key: 'web', label: 'Website', icon: 'globe', bg: '#1D1D1F', href: r.website || '' },
+    { key: 'web', label: 'Website', icon: 'globe', bg: '#1D1D1F', href: web },
   ].filter((a) => ['call', 'wa', 'map', 'ig'].includes(a.key) || a.href);
   return (
     <div className="pb-2">
@@ -242,11 +243,8 @@ function Details({ r }: { r: any }) {
           );
         })}
       </div>
-      {address || hours ? (
+      { hours ? (
         <div className="mt-3 divide-y rounded-[22px] bg-white" style={{ ['--tw-divide-opacity' as string]: 1 }}>
-          {address ? (
-            <div className="flex gap-3 p-4"><span style={{ color: 'var(--ms-muted)' }}><Icon name="pin" size={20} /></span><p dir="auto" className="text-[14px] leading-snug">{address}</p></div>
-          ) : null}
           {hours ? (
             <div className="flex gap-3 p-4"><span style={{ color: 'var(--ms-muted)' }}><Icon name="clock" size={20} /></span><p dir="auto" className="text-[14px] leading-snug">{hours}</p></div>
           ) : null}
@@ -298,8 +296,24 @@ function slugify(v: string) {
   return v.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
 }
 
-/* `owner_contact` from data/restaurants.json, stored with its country code. */
-function ownerWa(raw?: string) {
+/* ───────────── contact details ─────────────
+   Everything the Details sheet shows, plus where "Send bill on WhatsApp" is
+   delivered. Edit these values to change the restaurant's contact info.
+   Leave a field as "" to hide that tile. Numbers may be written with or without
+   a leading "+" — they are normalised when the link is built. */
+const CONTACT = {
+  phone: '97471834040',
+  whatsapp: '97471834040',
+  instagram: 'https://www.instagram.com/biteburgcafe?igsh=MWJpZ3Z5aHUxMm03Nw%3D%3D&utm_source=qr',
+  address: 'https://maps.app.goo.gl/yiT8fqfJ1Pom5yo49',
+  hours: '',
+  website: '',
+  /** WhatsApp recipient for orders. Falls back to `whatsapp`, then `phone`. */
+  orderTo: '',
+};
+
+/** Strips everything but digits, then re-adds the leading `+`. */
+function waNumber(raw?: string) {
   const d = String(raw || '').replace(/\D/g, '');
   return d ? `+${d}` : '';
 }
@@ -626,7 +640,7 @@ export default function Theme({ restaurant, menu, status }: ThemeProps) {
     ]
       .filter(Boolean)
       .join('\n');
-    const owner = ownerWa((restaurant as any).ownerContact);
+    const owner = waNumber(CONTACT.orderTo || CONTACT.whatsapp || CONTACT.phone);
     const url = owner
       ? `https://wa.me/${owner}?text=${encodeURIComponent(text)}`
       : `https://wa.me/?text=${encodeURIComponent(text)}`;
