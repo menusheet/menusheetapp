@@ -5,17 +5,37 @@
  *  Deploy once per restaurant Google Sheet:
  *    1. Open the restaurant's Google Sheet → Extensions → Apps Script.
  *    2. Paste this entire file over Code.gs.
- *    3. Fill in the three REPLACE_ME values below:
+ *    3. Turn on the manifest: Project Settings → tick "Show appsscript.json
+ *       manifest file in editor". Paste the contents of
+ *       apps-script/appsscript.json over it.
+ *
+ *       This step is not optional. Without the manifest, Apps Script infers
+ *       scopes at run time and the Reload button fails with:
+ *         "You do not have permission to call UrlFetchApp.fetch.
+ *          Required permissions: .../auth/script.external_request"
+ *       because the consent prompt cannot be answered from a menu click.
+ *       The manifest declares the three scopes this script actually uses:
+ *         spreadsheets.currentonly  read the bound sheet (initSheet, readMenuTab)
+ *         script.container.ui       the MenuSheet menu and its alert dialogs
+ *         script.external_request   POST /api/reload from the Reload button
+ *
+ *    4. Fill in the REPLACE_ME values below:
  *         RESTAURANT_ID   your /r/{id} slug, from the MenuSheet admin portal
- *         RESTAURANT_NAME the display name shown on the page
+ *         RESTAURANT_NAME the display name shown on the page (optional)
  *         API_URL         the menusheet-api Worker URL
  *         SHARED_SECRET   the same secret the Worker holds
- *    4. Run initSheet() once from the editor to create the Menu tab.
- *    5. Deploy → New deployment → type "Web app".
+ *    5. Run initSheet() once from the editor to create the Menu tab, and
+ *       approve the permission prompt when it appears.
+ *    6. Deploy → New deployment → type "Web app".
  *         - Execute as:  Me (<sheet owner account>)
  *         - Who has access: Anyone
- *    6. Copy the /exec URL into the restaurant's page in the admin portal
+ *    7. Copy the /exec URL into the restaurant's page in the admin portal
  *       (Apps Script Web App URL field).
+ *
+ *    Editing the script or its manifest later? Redeploy (Deploy → Manage
+ *    deployments → edit → New version). A saved code change does NOT reach
+ *    the live /exec URL on its own, and the first Reload after adding a
+ *    scope needs a fresh authorization.
  *
  *  There is deliberately only ONE tab: "Menu".
  *
@@ -205,7 +225,7 @@ function reloadMenuOnWebsite() {
     });
     result = JSON.parse(res.getContentText());
   } catch (err) {
-    ui.alert('Could not reach MenuSheet', 'The request failed before it got an answer:\n\n' + err, ui.ButtonSet.OK);
+    ui.alert('Could not reach MenuSheet', explainReloadError_(err), ui.ButtonSet.OK);
     return;
   }
 
@@ -226,6 +246,34 @@ function reloadMenuOnWebsite() {
     'Keep editing and press this button again whenever you want to push another change.',
     ui.ButtonSet.OK
   );
+}
+
+/**
+ * Turns an exception from UrlFetchApp.fetch into something an owner can act on.
+ *
+ * The one that actually bites is the missing-manifest case. Without an
+ * appsscript.json declaring script.external_request, Apps Script throws a scope
+ * error on the menu click and there is no consent prompt to answer, so the
+ * raw exception text is the only clue — and it reads like a platform outage
+ * rather than a setup step that is missing. Name the step instead.
+ */
+function explainReloadError_(err) {
+  var text = err ? String(err) : '';
+
+  if (text.indexOf('script.external_request') !== -1 || text.indexOf('You do not have permission to call') !== -1) {
+    return 'This script is not allowed to make web requests yet.\n\n' +
+      'Someone who set this sheet up needs to do this once:\n\n' +
+      '1. Extensions → Apps Script → Project Settings\n' +
+      '2. Tick "Show appsscript.json manifest file in editor"\n' +
+      '3. Replace its contents with the MenuSheet manifest (it lists the\n' +
+      '   script.external_request scope this button needs)\n' +
+      '4. Run initSheet() once and approve the permission prompt\n' +
+      '5. Deploy → Manage deployments → edit → New version\n\n' +
+      'Your menu is untouched and still live on the website until then.';
+  }
+
+  return 'The request failed before it got an answer:\n\n' + text +
+    '\n\nIf API_URL looks wrong, check step 4 at the top of this file.';
 }
 
 // ----------------------------------------------------------------
