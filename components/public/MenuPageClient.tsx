@@ -73,9 +73,12 @@ export default function MenuPageClient({
     };
   }, []);
 
-  const fetchLive = useCallback(async (): Promise<MenuPayload | null> => {
-    return fetchMenuPayload(restaurantId, normalizeMenuPayload);
-  }, [restaurantId]);
+  const fetchLive = useCallback(
+    async (bypassHttpCache = false): Promise<MenuPayload | null> => {
+      return fetchMenuPayload(restaurantId, normalizeMenuPayload, 12000, bypassHttpCache);
+    },
+    [restaurantId]
+  );
 
   /* The Worker answers from an edge cache, so a retry is only insurance against
      a dropped connection rather than a cold start. Two attempts is enough. */
@@ -133,7 +136,7 @@ export default function MenuPageClient({
     if (!configured || refreshing) return;
     setRefreshing(true);
     clearCache(restaurantId);
-    const live = await fetchLive();
+    const live = await fetchLive(true);
     if (live) {
       setPayload(live);
       if (live.theme_key) setActiveThemeKey(live.theme_key);
